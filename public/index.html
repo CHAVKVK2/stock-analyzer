@@ -28,7 +28,7 @@
             type="text"
             id="tickerInput"
             class="search-input"
-            placeholder="예: AAPL, TSLA, 005930 (삼성전자), 035420 (NAVER)"
+            placeholder="예: Tesla, 삼성전자, Apple, AAPL, 005930"
             autocomplete="off"
             spellcheck="false"
           />
@@ -98,6 +98,17 @@
 
       <!-- 기술적 분석 탭 -->
       <div id="tab-technical" class="tab-content active">
+        <!-- 뉴스 패널 -->
+        <section id="newsSection" class="news-section hidden">
+          <div class="news-header">
+            <h3 class="news-title">관련 뉴스</h3>
+            <span id="newsLoading" class="news-spinner hidden">
+              <span class="spinner-sm"></span>
+            </span>
+          </div>
+          <div id="newsList" class="news-list"></div>
+        </section>
+
         <div class="range-selector">
           <span class="range-label">기간:</span>
           <button class="range-btn" data-range="1mo">1M</button>
@@ -108,10 +119,10 @@
         </div>
 
         <div class="charts-container">
-          <!-- 가격 + 볼린저밴드 -->
+          <!-- 주가 차트 -->
           <div class="chart-card chart-card--tall">
             <div class="chart-header">
-              <span class="chart-title">주가 &amp; 볼린저밴드</span>
+              <span class="chart-title">주가</span>
               <div class="chart-legend">
                 <span class="legend-item"><span class="legend-dot" style="background:#388bfd"></span>종가</span>
                 <span class="legend-item"><span class="legend-dot" style="background:#8b949e"></span>볼린저밴드</span>
@@ -123,35 +134,24 @@
             </div>
           </div>
 
-          <div class="charts-row">
-            <!-- RSI -->
-            <div class="chart-card">
-              <div class="chart-header">
-                <span class="chart-title">RSI (14)</span>
-                <div class="chart-legend">
-                  <span class="legend-item rsi-overbought">과매수 &gt;70</span>
-                  <span class="legend-item rsi-oversold">과매도 &lt;30</span>
-                </div>
-              </div>
-              <div class="chart-wrap">
-                <canvas id="rsiChart"></canvas>
-              </div>
-            </div>
-
-            <!-- MACD -->
-            <div class="chart-card">
-              <div class="chart-header">
-                <span class="chart-title">MACD (12, 26, 9)</span>
-                <div class="chart-legend">
-                  <span class="legend-item"><span class="legend-dot" style="background:#388bfd"></span>MACD</span>
-                  <span class="legend-item"><span class="legend-dot" style="background:#f0883e"></span>시그널</span>
-                  <span class="legend-item"><span class="legend-dot" style="background:#3fb950"></span>히스토그램</span>
-                </div>
-              </div>
-              <div class="chart-wrap">
-                <canvas id="macdChart"></canvas>
-              </div>
-            </div>
+          <!-- 지표 선택 -->
+          <div class="indicator-toggles">
+            <span class="indicator-toggles-label">지표</span>
+            <label class="indicator-toggle">
+              <input type="checkbox" id="toggleBB" checked>
+              <span class="toggle-dot" style="background:#8b949e"></span>
+              볼린저밴드
+            </label>
+            <label class="indicator-toggle">
+              <input type="checkbox" id="toggleRSI">
+              <span class="toggle-dot" style="background:#bc8cff"></span>
+              RSI
+            </label>
+            <label class="indicator-toggle">
+              <input type="checkbox" id="toggleMACD">
+              <span class="toggle-dot" style="background:#388bfd"></span>
+              MACD
+            </label>
           </div>
         </div>
       </div>

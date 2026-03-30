@@ -27,6 +27,7 @@ document.addEventListener('DOMContentLoaded', () => {
   setupTabs();
   setupRangeButtons();
   setupFinancialControls();
+  setupIndicatorToggles();
   loadFromURL();
 });
 
@@ -56,10 +57,7 @@ function pushURL(ticker, range) {
 function setupSearch() {
   searchBtn.addEventListener('click', triggerSearch);
   tickerInput.addEventListener('keydown', e => {
-    if (e.key === 'Enter') {
-      autocomplete.classList.add('hidden');
-      triggerSearch();
-    }
+    if (e.key === 'Enter') triggerSearch();
   });
 
   // 자동완성
@@ -82,12 +80,47 @@ function setupSearch() {
   });
 }
 
-function triggerSearch() {
-  const ticker = tickerInput.value.trim();
-  if (!ticker) return;
+async function triggerSearch() {
+  const raw = tickerInput.value.trim();
+  if (!raw) return;
+
+  // 자동완성이 열려 있으면 첫 번째 항목 자동 선택
+  if (!autocomplete.classList.contains('hidden')) {
+    const firstItem = autocomplete.querySelector('.autocomplete-item');
+    if (firstItem) {
+      const sym = firstItem.dataset.symbol;
+      tickerInput.value = sym;
+      autocomplete.classList.add('hidden');
+      if (sym.includes('.')) suffixSelect.value = 'none';
+      state.currentRange = getActiveRange();
+      search(sym, state.currentRange);
+      return;
+    }
+  }
+
   autocomplete.classList.add('hidden');
   state.currentRange = getActiveRange();
-  search(ticker, state.currentRange);
+
+  // 소문자·공백·한글이 포함되면 회사명으로 판단 → 검색 API로 티커 변환
+  if (/[a-z\s가-힣]/.test(raw)) {
+    const { symbol, hasDot } = await resolveToTicker(raw);
+    tickerInput.value = symbol;
+    if (hasDot) suffixSelect.value = 'none';
+    search(symbol, state.currentRange);
+  } else {
+    search(raw, state.currentRange);
+  }
+}
+
+// 회사명 → 티커 변환 (검색 API 첫 번째 결과 사용)
+async function resolveToTicker(query) {
+  try {
+    const res = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
+    const data = await res.json();
+    const top = (data.suggestions || [])[0];
+    if (top) return { symbol: top.symbol, hasDot: top.symbol.includes('.') };
+  } catch {}
+  return { symbol: query, hasDot: query.includes('.') };
 }
 
 async function fetchAutocomplete(q) {
@@ -135,6 +168,7 @@ async function search(ticker, range) {
   showLoading(true);
   hideError();
   hideMainContent();
+  document.getElementById('newsSection').classList.add('hidden');
 
   pushURL(ticker, range);
 
@@ -151,8 +185,9 @@ async function search(ticker, range) {
       state.currency = techRes.value.meta.currency || 'USD';
       renderStockHeader(techRes.value);
       buildPriceChart(techRes.value);
-      buildRSIChart(techRes.value);
-      buildMACDChart(techRes.value);
+      toggleBollingerBands(document.getElementById('toggleBB').checked);
+      toggleRSI(document.getElementById('toggleRSI').checked);
+      toggleMACD(document.getElementById('toggleMACD').checked);
     } else {
       const errMsg = (techRes.value && techRes.value.error) || '기술적 분석 데이터를 불러오지 못했습니다.';
       showError(errMsg);
@@ -169,6 +204,9 @@ async function search(ticker, range) {
 
     showLoading(false);
     showMainContent();
+
+    // 뉴스는 메인 콘텐츠 표시 후 비동기 로드
+    fetchAndRenderNews(techRes.value.resolvedTicker);
   } catch (err) {
     showError('서버 연결에 실패했습니다. 네트워크를 확인해주세요.');
     showLoading(false);
@@ -268,8 +306,9 @@ async function reloadTechnical() {
     state.technicalData = data;
     renderStockHeader(data);
     buildPriceChart(data);
-    buildRSIChart(data);
-    buildMACDChart(data);
+    toggleBollingerBands(document.getElementById('toggleBB').checked);
+    toggleRSI(document.getElementById('toggleRSI').checked);
+    toggleMACD(document.getElementById('toggleMACD').checked);
     pushURL(state.currentTicker, state.currentRange);
     showLoading(false);
     showMainContent();
@@ -277,6 +316,19 @@ async function reloadTechnical() {
     showError('데이터를 불러오지 못했습니다.');
     showLoading(false);
   }
+}
+
+// ===== 지표 토글 =====
+function setupIndicatorToggles() {
+  document.getElementById('toggleBB').addEventListener('change', e => {
+    toggleBollingerBands(e.target.checked);
+  });
+  document.getElementById('toggleRSI').addEventListener('change', e => {
+    toggleRSI(e.target.checked);
+  });
+  document.getElementById('toggleMACD').addEventListener('change', e => {
+    toggleMACD(e.target.checked);
+  });
 }
 
 // ===== 재무제표 컨트롤 =====
@@ -303,6 +355,60 @@ function setupFinancialControls() {
       }
     });
   });
+}
+
+// ===== 뉴스 =====
+
+async function fetchAndRenderNews(ticker) {
+  const section  = document.getElementById('newsSection');
+  const list     = document.getElementById('newsList');
+  const spinner  = document.getElementById('newsLoading');
+
+  section.classList.remove('hidden');
+  spinner.classList.remove('hidden');
+  list.innerHTML = '';
+
+  try {
+    const res  = await fetch(`/api/news/${encodeURIComponent(ticker)}`);
+    const data = await res.json();
+    renderNews(data.news || []);
+  } catch {
+    list.innerHTML = '<p class="news-empty">뉴스를 불러오지 못했습니다.</p>';
+  } finally {
+    spinner.classList.add('hidden');
+  }
+}
+
+function renderNews(articles) {
+  const list = document.getElementById('newsList');
+  if (!articles.length) {
+    list.innerHTML = '<p class="news-empty">관련 뉴스가 없습니다.</p>';
+    return;
+  }
+  list.innerHTML = articles.map(a => `
+    <a href="${escapeAttr(a.url)}" target="_blank" rel="noopener noreferrer" class="news-item">
+      <div class="news-headline">${escapeHtml(a.headline)}</div>
+      <div class="news-meta">
+        <span class="news-source">${escapeHtml(a.source)}</span>
+        <span class="news-date">${escapeHtml(a.datetime)}</span>
+      </div>
+    </a>
+  `).join('');
+}
+
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function escapeAttr(str) {
+  // URL은 http/https만 허용
+  const s = String(str).trim();
+  if (!/^https?:\/\//i.test(s)) return '#';
+  return s.replace(/"/g, '%22');
 }
 
 // ===== UI 헬퍼 =====
