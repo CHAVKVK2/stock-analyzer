@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Stock Analyzer</title>
+  <link rel="stylesheet" href="/css/styles.css" />
+</head>
+<body>
+  <header class="header">
+    <div class="header-inner">
+      <div class="logo">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/>
+          <polyline points="16 7 22 7 22 13"/>
+        </svg>
+        <span>Stock Analyzer</span>
+      </div>
+    </div>
+  </header>
+
+  <main class="main">
+    <!-- 검색 바 -->
+    <section class="search-section">
+      <div class="search-wrapper">
+        <div class="search-bar">
+          <input
+            type="text"
+            id="tickerInput"
+            class="search-input"
+            placeholder="예: AAPL, TSLA, 005930 (삼성전자), 035420 (NAVER)"
+            autocomplete="off"
+            spellcheck="false"
+          />
+          <select id="suffixSelect" class="suffix-select">
+            <option value="auto">자동</option>
+            <option value=".KS">KOSPI (.KS)</option>
+            <option value=".KQ">KOSDAQ (.KQ)</option>
+            <option value="none">접미사 없음</option>
+          </select>
+          <button id="searchBtn" class="search-btn">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <circle cx="11" cy="11" r="8"/>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+            조회
+          </button>
+        </div>
+        <div id="autocomplete" class="autocomplete hidden"></div>
+      </div>
+    </section>
+
+    <!-- 에러 배너 -->
+    <div id="errorBanner" class="error-banner hidden">
+      <span id="errorMsg"></span>
+      <button onclick="document.getElementById('errorBanner').classList.add('hidden')">&times;</button>
+    </div>
+
+    <!-- 종목 헤더 -->
+    <section id="stockHeader" class="stock-header hidden">
+      <div class="stock-info">
+        <div class="stock-name-group">
+          <h2 id="stockName"></h2>
+          <span id="stockTicker" class="stock-ticker-badge"></span>
+          <span id="stockExchange" class="stock-exchange"></span>
+        </div>
+        <div class="stock-price-group">
+          <span id="stockPrice" class="stock-price"></span>
+          <span id="stockChange" class="stock-change"></span>
+          <span id="stockCurrency" class="stock-currency"></span>
+        </div>
+      </div>
+    </section>
+
+    <!-- 로딩 스피너 -->
+    <div id="loadingSpinner" class="loading-spinner hidden">
+      <div class="spinner"></div>
+      <p>데이터를 불러오는 중...</p>
+    </div>
+
+    <!-- 메인 컨텐츠 -->
+    <section id="mainContent" class="main-content hidden">
+      <!-- 탭 네비게이션 -->
+      <div class="tab-nav">
+        <button class="tab-btn active" data-tab="technical">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+          </svg>
+          기술적 분석
+        </button>
+        <button class="tab-btn" data-tab="financials">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>
+          </svg>
+          재무제표
+        </button>
+      </div>
+
+      <!-- 기술적 분석 탭 -->
+      <div id="tab-technical" class="tab-content active">
+        <div class="range-selector">
+          <span class="range-label">기간:</span>
+          <button class="range-btn" data-range="1mo">1M</button>
+          <button class="range-btn" data-range="3mo">3M</button>
+          <button class="range-btn active" data-range="6mo">6M</button>
+          <button class="range-btn" data-range="1y">1Y</button>
+          <button class="range-btn" data-range="2y">2Y</button>
+        </div>
+
+        <div class="charts-container">
+          <!-- 가격 + 볼린저밴드 -->
+          <div class="chart-card chart-card--tall">
+            <div class="chart-header">
+              <span class="chart-title">주가 &amp; 볼린저밴드</span>
+              <div class="chart-legend">
+                <span class="legend-item"><span class="legend-dot" style="background:#388bfd"></span>종가</span>
+                <span class="legend-item"><span class="legend-dot" style="background:#8b949e"></span>볼린저밴드</span>
+                <span class="legend-item"><span class="legend-dot" style="background:#3fb950; opacity:0.5"></span>거래량</span>
+              </div>
+            </div>
+            <div class="chart-wrap">
+              <canvas id="priceChart"></canvas>
+            </div>
+          </div>
+
+          <div class="charts-row">
+            <!-- RSI -->
+            <div class="chart-card">
+              <div class="chart-header">
+                <span class="chart-title">RSI (14)</span>
+                <div class="chart-legend">
+                  <span class="legend-item rsi-overbought">과매수 &gt;70</span>
+                  <span class="legend-item rsi-oversold">과매도 &lt;30</span>
+                </div>
+              </div>
+              <div class="chart-wrap">
+                <canvas id="rsiChart"></canvas>
+              </div>
+            </div>
+
+            <!-- MACD -->
+            <div class="chart-card">
+              <div class="chart-header">
+                <span class="chart-title">MACD (12, 26, 9)</span>
+                <div class="chart-legend">
+                  <span class="legend-item"><span class="legend-dot" style="background:#388bfd"></span>MACD</span>
+                  <span class="legend-item"><span class="legend-dot" style="background:#f0883e"></span>시그널</span>
+                  <span class="legend-item"><span class="legend-dot" style="background:#3fb950"></span>히스토그램</span>
+                </div>
+              </div>
+              <div class="chart-wrap">
+                <canvas id="macdChart"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 재무제표 탭 -->
+      <div id="tab-financials" class="tab-content hidden">
+        <div class="fin-controls">
+          <div class="fin-subtabs">
+            <button class="fin-tab-btn active" data-fintab="income">손익계산서</button>
+            <button class="fin-tab-btn" data-fintab="balance">재무상태표</button>
+            <button class="fin-tab-btn" data-fintab="cashflow">현금흐름표</button>
+          </div>
+          <div class="period-toggle">
+            <button class="period-btn active" data-period="annual">연간</button>
+            <button class="period-btn" data-period="quarterly">분기</button>
+          </div>
+        </div>
+
+        <div id="fin-income" class="fin-content active">
+          <div id="incomeTable" class="table-container"></div>
+        </div>
+        <div id="fin-balance" class="fin-content hidden">
+          <div id="balanceTable" class="table-container"></div>
+        </div>
+        <div id="fin-cashflow" class="fin-content hidden">
+          <div id="cashflowTable" class="table-container"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+
+  <script src="/js/charts.js"></script>
+  <script src="/js/financials.js"></script>
+  <script src="/js/app.js"></script>
+</body>
+</html>

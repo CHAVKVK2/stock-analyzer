@@ -1,0 +1,16 @@
+{
+  "name": "stock-analyzer",
+  "version": "1.0.0",
+  "description": "한국/미국 주식 기술적 분석 및 재무제표 웹 애플리케이션",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "technicalindicators": "^3.1.0",
+    "yahoo-finance2": "^3.14.0"
+  }
+}
