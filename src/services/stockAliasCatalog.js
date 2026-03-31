@@ -27,7 +27,7 @@ const STOCK_ALIAS_CATALOG = [
     symbol: '005380.KS',
     exchange: 'KSC',
     name: 'Hyundai Motor Company',
-    aliases: ['현대차', '현대자동차', 'hyundai', 'hyundaimotor', '005380'],
+    aliases: ['현대', '현대차', '현대자동차', 'hyundai', 'hyundaimotor', '005380'],
   },
   {
     symbol: '000270.KS',
