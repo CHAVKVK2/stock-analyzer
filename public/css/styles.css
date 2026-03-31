@@ -509,6 +509,62 @@ body {
 .news-source { color: var(--accent-blue); }
 .news-empty { color: var(--text-secondary); }
 
+.section-toggle-row {
+  display: flex;
+  align-items: center;
+  margin: 14px 0 10px;
+}
+
+.section-toggle-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text-primary);
+  cursor: pointer;
+  user-select: none;
+  font-weight: 700;
+}
+
+.section-toggle-control input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.section-toggle-box {
+  width: 18px;
+  height: 18px;
+  border: 1.5px solid var(--border-strong);
+  border-radius: 4px;
+  background: rgba(15, 23, 42, 0.85);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 18px;
+}
+
+.section-toggle-box::after {
+  content: '';
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  background: transparent;
+  transition: background 0.15s ease;
+}
+
+.section-toggle-control input:checked + .section-toggle-box {
+  border-color: rgba(88, 166, 255, 0.8);
+  box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.12);
+}
+
+.section-toggle-control input:checked + .section-toggle-box::after {
+  background: var(--accent-blue);
+}
+
+.section-toggle-text {
+  color: var(--text-secondary);
+}
+
 .historical-signal-card {
   margin-top: 18px;
   margin-bottom: 18px;
@@ -602,10 +658,68 @@ body {
   gap: 12px;
 }
 
+.breakdown-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.rules-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.breakdown-list {
+  display: grid;
+  gap: 8px;
+}
+
+.breakdown-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(148, 163, 184, 0.06);
+  color: var(--text-secondary);
+}
+
+.breakdown-item strong {
+  color: var(--text-primary);
+}
+
+.backtest-card {
+  margin-top: 18px;
+  margin-bottom: 18px;
+  padding: 22px 24px;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  background: rgba(15, 23, 42, 0.72);
+  box-shadow: var(--shadow);
+}
+
+.backtest-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.backtest-chart-card {
+  margin-bottom: 16px;
+}
+
+.backtest-table-wrap {
+  margin-top: 16px;
+}
+
 .fear-greed-card {
   margin-top: 18px;
   padding: 22px 24px;
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--border);
   border-radius: 20px;
   background: linear-gradient(135deg, rgba(88, 166, 255, 0.08), rgba(210, 153, 34, 0.08));
 }
@@ -929,7 +1043,10 @@ body {
   }
 
   .historical-signal-summary,
-  .historical-indicator-grid {
+  .historical-indicator-grid,
+  .backtest-summary,
+  .breakdown-grid,
+  .rules-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
@@ -965,7 +1082,10 @@ body {
   }
 
   .historical-signal-summary,
-  .historical-indicator-grid {
+  .historical-indicator-grid,
+  .backtest-summary,
+  .breakdown-grid,
+  .rules-grid {
     grid-template-columns: minmax(0, 1fr);
   }
 

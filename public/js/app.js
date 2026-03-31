@@ -31,6 +31,12 @@ const fearGreedLabel = document.getElementById('fearGreedLabel');
 const fearGreedValue = document.getElementById('fearGreedValue');
 const fearGreedMeta = document.getElementById('fearGreedMeta');
 const fearGreedFill = document.getElementById('fearGreedFill');
+const toggleRulesSection = document.getElementById('toggleRulesSection');
+const togglePointInTimeSection = document.getElementById('togglePointInTimeSection');
+const toggleBacktestSection = document.getElementById('toggleBacktestSection');
+const toggleFearGreedSection = document.getElementById('toggleFearGreedSection');
+const toggleChartSection = document.getElementById('toggleChartSection');
+const rulesSection = document.getElementById('rulesSection');
 const historicalSignalSection = document.getElementById('historicalSignalSection');
 const historicalDateInput = document.getElementById('historicalDateInput');
 const historicalSignalBtn = document.getElementById('historicalSignalBtn');
@@ -47,6 +53,21 @@ const historicalEmaPair = document.getElementById('historicalEmaPair');
 const historicalAtrAdx = document.getElementById('historicalAtrAdx');
 const historicalVolumeRatio = document.getElementById('historicalVolumeRatio');
 const historicalLevels = document.getElementById('historicalLevels');
+const historicalBuyBreakdown = document.getElementById('historicalBuyBreakdown');
+const historicalSellBreakdown = document.getElementById('historicalSellBreakdown');
+const backtestSection = document.getElementById('backtestSection');
+const backtestStartDate = document.getElementById('backtestStartDate');
+const backtestEndDate = document.getElementById('backtestEndDate');
+const backtestBtn = document.getElementById('backtestBtn');
+const backtestResult = document.getElementById('backtestResult');
+const backtestCumulativeReturn = document.getElementById('backtestCumulativeReturn');
+const backtestTradeCount = document.getElementById('backtestTradeCount');
+const backtestWinRate = document.getElementById('backtestWinRate');
+const backtestMdd = document.getElementById('backtestMdd');
+const backtestBuyHold = document.getElementById('backtestBuyHold');
+const backtestActualRange = document.getElementById('backtestActualRange');
+const backtestTableBody = document.getElementById('backtestTableBody');
+const chartSection = document.getElementById('chartSection');
 
 document.addEventListener('DOMContentLoaded', () => {
   setupSearch();
@@ -55,6 +76,8 @@ document.addEventListener('DOMContentLoaded', () => {
   setupFinancialControls();
   setupIndicatorToggles();
   setupHistoricalSignal();
+  setupBacktest();
+  setupSectionToggles();
   loadFromURL();
 });
 
@@ -76,7 +99,7 @@ function pushURL(ticker, range) {
   const url = new URL(window.location);
   url.searchParams.set('ticker', ticker);
   url.searchParams.set('range', range);
-  history.pushState({}, '', url);
+  history.replaceState({}, '', url);
 }
 
 function setupSearch() {
@@ -107,17 +130,17 @@ async function triggerSearch() {
   const raw = tickerInput.value.trim();
   if (!raw) return;
 
-    if (!autocomplete.classList.contains('hidden')) {
-      const firstItem = autocomplete.querySelector('.autocomplete-item');
-      if (firstItem) {
-        const symbol = firstItem.dataset.symbol;
-        tickerInput.value = symbol;
-        autocomplete.classList.add('hidden');
-        suffixSelect.value = 'none';
-        state.currentRange = getActiveRange();
-        search(symbol, state.currentRange);
-        return;
-      }
+  if (!autocomplete.classList.contains('hidden')) {
+    const firstItem = autocomplete.querySelector('.autocomplete-item');
+    if (firstItem) {
+      const symbol = firstItem.dataset.symbol;
+      tickerInput.value = symbol;
+      autocomplete.classList.add('hidden');
+      suffixSelect.value = 'none';
+      state.currentRange = getActiveRange();
+      search(symbol, state.currentRange);
+      return;
+    }
   }
 
   autocomplete.classList.add('hidden');
@@ -135,7 +158,7 @@ async function triggerSearch() {
 }
 
 async function resolveToTicker(query) {
-    try {
+  try {
     const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
     const data = await response.json();
     const top = (data.suggestions || [])[0];
@@ -194,6 +217,7 @@ async function search(ticker, range) {
   resetFearGreed();
   resetFinancialPanels();
   resetHistoricalSignal();
+  resetBacktest();
   document.getElementById('newsSection').classList.add('hidden');
 
   pushURL(ticker, range);
@@ -219,6 +243,7 @@ async function search(ticker, range) {
     renderStockHeader(technicalResult.value);
     renderSignalOverview(technicalResult.value);
     prepareHistoricalSignal(technicalResult.value);
+    prepareBacktest(technicalResult.value);
     buildPriceChart(technicalResult.value);
     syncIndicatorToggleState();
 
@@ -284,10 +309,10 @@ function renderSignalOverview(data) {
   signalRisks.innerHTML = (summary.risks || []).map(risk => `<li>${escapeHtml(risk)}</li>`).join('');
 
   scoreCards.innerHTML = `
-    ${renderScoreCard('매수 점수', scores.buyScore, '추세, 모멘텀, 거래량 흐름을 종합한 점수입니다.', 'buy')}
-    ${renderScoreCard('매도 점수', scores.sellScore, '하락 압력과 약세 흐름을 종합한 점수입니다.', 'sell')}
-    ${renderScoreCard('추세 상태', marketState.trendStrength, `방향: ${formatLocalizedValue(marketState.trend || 'unknown')}`, 'neutral')}
-    ${renderScoreCard('변동성', marketState.volatility, `모멘텀: ${formatLocalizedValue(marketState.momentum || 'unknown')}`, 'neutral')}
+    ${renderScoreCard('매수 점수', scores.buyScore, '현재 엔진이 계산한 매수 우위 점수입니다.', 'buy')}
+    ${renderScoreCard('매도 점수', scores.sellScore, '현재 엔진이 계산한 매도 우위 점수입니다.', 'sell')}
+    ${renderScoreCard('추세 강도', formatLocalizedValue(marketState.trendStrength), `방향: ${formatLocalizedValue(marketState.trend)}`, 'neutral')}
+    ${renderScoreCard('변동성', formatLocalizedValue(marketState.volatility), `모멘텀: ${formatLocalizedValue(marketState.momentum)}`, 'neutral')}
   `;
 
   marketBadges.innerHTML = [
@@ -347,16 +372,30 @@ function renderFinancialFallback() {
     element.innerHTML = `
       <div class="no-data">
         재무제표 데이터를 불러오지 못했습니다.<br>
-        다시 검색하거나 잠시 후 다시 시도해 주세요.
+        잠시 후 다시 시도해 주세요.
       </div>
     `;
   });
 }
 
 function setupHistoricalSignal() {
-  historicalSignalBtn.addEventListener('click', () => {
-    fetchHistoricalSignal();
+  historicalSignalBtn.addEventListener('click', fetchHistoricalSignal);
+}
+
+function setupSectionToggles() {
+  bindSectionToggle(toggleRulesSection, rulesSection);
+  bindSectionToggle(togglePointInTimeSection, historicalSignalSection);
+  bindSectionToggle(toggleBacktestSection, backtestSection);
+  bindSectionToggle(toggleFearGreedSection, fearGreedSection);
+  bindSectionToggle(toggleChartSection, chartSection);
+}
+
+function bindSectionToggle(checkbox, section) {
+  if (!checkbox || !section) return;
+  checkbox.addEventListener('change', () => {
+    section.classList.toggle('hidden', !checkbox.checked);
   });
+  section.classList.toggle('hidden', !checkbox.checked);
 }
 
 function prepareHistoricalSignal(data) {
@@ -366,32 +405,30 @@ function prepareHistoricalSignal(data) {
     return;
   }
 
-  historicalSignalSection.classList.remove('hidden');
-  const firstDate = prices[0].date;
   const lastDate = prices[prices.length - 1].date;
-  historicalDateInput.min = firstDate;
   historicalDateInput.max = lastDate;
 
-  if (!historicalDateInput.value || historicalDateInput.value < firstDate || historicalDateInput.value > lastDate) {
+  if (!historicalDateInput.value) {
     historicalDateInput.value = lastDate;
   }
 }
 
 function resetHistoricalSignal() {
-  historicalSignalSection.classList.add('hidden');
   historicalSignalResult.classList.add('hidden');
   historicalDateInput.value = '';
+  historicalBuyBreakdown.innerHTML = '';
+  historicalSellBreakdown.innerHTML = '';
 }
 
 async function fetchHistoricalSignal() {
   if (!state.currentTicker || !historicalDateInput.value) return;
 
   historicalSignalBtn.disabled = true;
-  historicalSignalBtn.textContent = '불러오는 중...';
+  historicalSignalBtn.textContent = '계산 중...';
 
   try {
     const suffix = suffixSelect.value;
-    const response = await fetch(`/api/stock/signal-date?ticker=${encodeURIComponent(state.currentTicker)}&date=${encodeURIComponent(historicalDateInput.value)}&range=2y&suffix=${suffix}`);
+    const response = await fetch(`/api/stock/signal-date?ticker=${encodeURIComponent(state.currentTicker)}&date=${encodeURIComponent(historicalDateInput.value)}&range=5y&suffix=${suffix}`);
     const data = await response.json();
 
     if (data.error) {
@@ -404,12 +441,13 @@ async function fetchHistoricalSignal() {
     showError('과거 날짜 신호를 불러오지 못했습니다.');
   } finally {
     historicalSignalBtn.disabled = false;
-    historicalSignalBtn.textContent = '조회';
+    historicalSignalBtn.textContent = '계산';
   }
 }
 
 function renderHistoricalSignal(data) {
   const snapshot = data.snapshot || {};
+  const breakdowns = data.signalScores || {};
 
   historicalSignalResult.classList.remove('hidden');
   historicalRequestedDate.textContent = data.requestedDate || '-';
@@ -425,6 +463,113 @@ function renderHistoricalSignal(data) {
   historicalAtrAdx.textContent = `${formatMaybeNumber(snapshot.atr14, 2)} / ${formatMaybeNumber(snapshot.adx14, 2)}`;
   historicalVolumeRatio.textContent = formatMaybeNumber(snapshot.volumeRatio, 2);
   historicalLevels.textContent = `${formatMaybePrice(snapshot.nearestSupport)} / ${formatMaybePrice(snapshot.nearestResistance)}`;
+  historicalBuyBreakdown.innerHTML = renderBreakdown(breakdowns.buyBreakdown);
+  historicalSellBreakdown.innerHTML = renderBreakdown(breakdowns.sellBreakdown);
+}
+
+function renderBreakdown(breakdown) {
+  if (!breakdown) return '<div class="breakdown-item">데이터 없음</div>';
+  return Object.entries(breakdown).map(([key, value]) => `
+    <div class="breakdown-item">
+      <span>${escapeHtml(localizeBreakdownKey(key))}</span>
+      <strong>${escapeHtml(String(value ?? '-'))}</strong>
+    </div>
+  `).join('');
+}
+
+function localizeBreakdownKey(key) {
+  const labels = {
+    trend: '추세',
+    momentum: '모멘텀',
+    volume: '거래량',
+    location: '가격 위치',
+    risk: '리스크',
+  };
+  return labels[key] || key;
+}
+
+function setupBacktest() {
+  backtestBtn.addEventListener('click', fetchBacktest);
+}
+
+function prepareBacktest(data) {
+  const prices = data.prices || [];
+  if (!prices.length) {
+    resetBacktest();
+    return;
+  }
+
+  const lastDate = prices[prices.length - 1].date;
+  const defaultStart = prices[Math.max(0, prices.length - 120)]?.date || prices[0].date;
+
+  backtestStartDate.max = lastDate;
+  backtestEndDate.max = lastDate;
+
+  if (!backtestEndDate.value) backtestEndDate.value = lastDate;
+  if (!backtestStartDate.value) backtestStartDate.value = defaultStart;
+}
+
+function resetBacktest() {
+  backtestResult.classList.add('hidden');
+  backtestTableBody.innerHTML = '';
+  backtestStartDate.value = '';
+  backtestEndDate.value = '';
+  if (typeof buildBacktestChart === 'function') buildBacktestChart({ equityCurve: [], results: [] });
+}
+
+async function fetchBacktest() {
+  if (!state.currentTicker || !backtestStartDate.value || !backtestEndDate.value) return;
+
+  backtestBtn.disabled = true;
+  backtestBtn.textContent = '실행 중...';
+
+  try {
+    const suffix = suffixSelect.value;
+    const response = await fetch(`/api/stock/backtest?ticker=${encodeURIComponent(state.currentTicker)}&startDate=${encodeURIComponent(backtestStartDate.value)}&endDate=${encodeURIComponent(backtestEndDate.value)}&range=5y&suffix=${suffix}`);
+    const data = await response.json();
+
+    if (data.error) {
+      showError(data.error);
+      return;
+    }
+
+    renderBacktest(data);
+  } catch (_) {
+    showError('백테스트를 실행하지 못했습니다.');
+  } finally {
+    backtestBtn.disabled = false;
+    backtestBtn.textContent = '실행';
+  }
+}
+
+function renderBacktest(data) {
+  const summary = data.summary || {};
+  const actualRange = data.actualRange || {};
+  const results = data.results || [];
+
+  backtestResult.classList.remove('hidden');
+  backtestCumulativeReturn.textContent = formatPercent(summary.cumulativeReturnPct);
+  backtestTradeCount.textContent = String(summary.tradeCount ?? 0);
+  backtestWinRate.textContent = formatPercent(summary.winRatePct);
+  backtestMdd.textContent = formatPercent(summary.maxDrawdownPct);
+  backtestBuyHold.textContent = formatPercent(summary.buyHoldReturnPct);
+  backtestActualRange.textContent = `${actualRange.startDate || '-'} ~ ${actualRange.endDate || '-'} (${actualRange.tradingDays || 0}일)`;
+
+  backtestTableBody.innerHTML = results.map(item => `
+    <tr>
+      <td>${escapeHtml(item.date)}</td>
+      <td>${escapeHtml(formatMaybePrice(item.close))}</td>
+      <td>${escapeHtml(String(item.buyScore ?? '-'))}</td>
+      <td>${escapeHtml(String(item.sellScore ?? '-'))}</td>
+      <td>${escapeHtml(item.signal || '-')}</td>
+      <td>${escapeHtml(item.position || '-')}</td>
+      <td>${escapeHtml(formatPercent(item.cumulativeReturnPct))}</td>
+    </tr>
+  `).join('');
+
+  if (typeof buildBacktestChart === 'function') {
+    buildBacktestChart(data);
+  }
 }
 
 function setupTabs() {
@@ -482,6 +627,7 @@ async function reloadTechnical() {
     renderStockHeader(data);
     renderSignalOverview(data);
     prepareHistoricalSignal(data);
+    prepareBacktest(data);
     buildPriceChart(data);
     syncIndicatorToggleState();
     pushURL(state.currentTicker, state.currentRange);
@@ -561,7 +707,7 @@ async function fetchAndRenderNews(ticker) {
     const data = await response.json();
     renderNews(data.news || []);
   } catch (_) {
-    list.innerHTML = '<p class="news-empty">기업 뉴스를 불러오지 못했습니다.</p>';
+    list.innerHTML = '<p class="news-empty">관련 뉴스를 불러오지 못했습니다.</p>';
   } finally {
     spinner.classList.add('hidden');
   }
@@ -584,7 +730,7 @@ function renderFearGreed(data) {
     return;
   }
 
-  fearGreedSection.classList.remove('hidden');
+  fearGreedSection.classList.toggle('hidden', !toggleFearGreedSection.checked);
   fearGreedValue.textContent = String(value);
   fearGreedLabel.textContent = formatFearGreedLabel(data.classification);
   fearGreedLabel.className = `fear-greed-label ${fearGreedToneClass(value)}`;
@@ -615,14 +761,13 @@ function formatFearGreedLabel(classification) {
     Greed: '탐욕',
     'Extreme Greed': '극도의 탐욕',
   };
-
   return labels[classification] || classification || '중립';
 }
 
 function renderNews(articles) {
   const list = document.getElementById('newsList');
   if (!articles.length) {
-    list.innerHTML = '<p class="news-empty">최근 기업 뉴스를 찾지 못했습니다.</p>';
+    list.innerHTML = '<p class="news-empty">관련 뉴스를 찾지 못했습니다.</p>';
     return;
   }
 
@@ -660,16 +805,15 @@ function hideMainContent() {
 
 function formatPrice(value, currency) {
   if (value == null) return '';
-  const symbol = currency === 'KRW' ? 'KRW ' : '$';
-  if (currency === 'KRW') return symbol + Math.round(value).toLocaleString('ko-KR');
-  return symbol + Number(value).toFixed(2);
+  if (currency === 'KRW') return `KRW ${Math.round(value).toLocaleString('ko-KR')}`;
+  return `$${Number(value).toFixed(2)}`;
 }
 
 function formatSignal(signal) {
   switch (signal) {
     case 'BUY': return '매수 우위';
     case 'SELL': return '매도 우위';
-    default: return '중립 관찰';
+    default: return '중립 / 관망';
   }
 }
 
@@ -682,19 +826,15 @@ function formatScoreValue(value) {
   return formatLocalizedValue(value || 'unknown');
 }
 
-function formatSentenceCase(value) {
-  if (!value) return '';
-  return value.charAt(0).toUpperCase() + value.slice(1);
-}
-
 function formatLocalizedValue(value) {
   const normalized = String(value || '').trim().toLowerCase().replace(/\s+/g, '_');
   const labels = {
     buy: '매수',
     sell: '매도',
     neutral: '중립',
-    unknown: '알 수 없음',
-    watch: '관찰',
+    hold: '보유',
+    unknown: '정보 없음',
+    watch: '관망',
     weak: '약함',
     moderate: '보통',
     strong: '강함',
@@ -708,11 +848,13 @@ function formatLocalizedValue(value) {
     low: '낮음',
     above_ema20: 'EMA20 위',
     below_ema20: 'EMA20 아래',
+    above_sma200: 'SMA200 위',
     below_sma200: 'SMA200 아래',
+    long: '보유 중',
+    cash: '현금',
   };
 
-  if (labels[normalized]) return labels[normalized];
-  return formatSentenceCase(String(value).replace(/_/g, ' '));
+  return labels[normalized] || String(value).replace(/_/g, ' ');
 }
 
 function formatMaybeNumber(value, digits = 2) {
@@ -721,6 +863,12 @@ function formatMaybeNumber(value, digits = 2) {
 
 function formatMaybePrice(value) {
   return typeof value === 'number' && Number.isFinite(value) ? formatPrice(value, state.currency) : '-';
+}
+
+function formatPercent(value) {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return '-';
+  const sign = value > 0 ? '+' : '';
+  return `${sign}${value.toFixed(2)}%`;
 }
 
 function escapeHtml(str) {

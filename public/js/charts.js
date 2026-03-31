@@ -5,6 +5,7 @@ Chart.defaults.borderColor = '#21262d';
 Chart.defaults.font.family = "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', sans-serif";
 
 const chartInstances = {};
+
 const PRICE_DATASET_GROUPS = {
   bollinger: ['볼린저 상단', '볼린저 중심', '볼린저 하단'],
   movingAverages: ['EMA 20', 'EMA 50', 'SMA 200', '거래량 MA20'],
@@ -65,6 +66,8 @@ function buildPriceChart(data) {
   destroyChart('price');
 
   const canvas = document.getElementById('priceChart');
+  if (!canvas) return;
+
   const context = canvas.getContext('2d');
   const labels = data.prices.map(item => item.date);
   const closes = data.prices.map(item => item.close);
@@ -80,9 +83,6 @@ function buildPriceChart(data) {
     if (value == null) return 'transparent';
     return value >= 0 ? 'rgba(63, 185, 80, 0.5)' : 'rgba(248, 81, 73, 0.5)';
   });
-
-  const rsiRef70 = labels.map(() => 70);
-  const rsiRef30 = labels.map(() => 30);
 
   const supportDatasets = buildLevelDatasets(labels, levels.supports, '지지선', 'rgba(63, 185, 80, 0.28)');
   const resistanceDatasets = buildLevelDatasets(labels, levels.resistances, '저항선', 'rgba(248, 81, 73, 0.28)');
@@ -213,7 +213,7 @@ function buildPriceChart(data) {
         },
         {
           label: 'RSI 기준선 70',
-          data: rsiRef70,
+          data: labels.map(() => 70),
           type: 'line',
           borderColor: 'rgba(248, 81, 73, 0.35)',
           backgroundColor: 'transparent',
@@ -227,7 +227,7 @@ function buildPriceChart(data) {
         },
         {
           label: 'RSI 기준선 30',
-          data: rsiRef30,
+          data: labels.map(() => 30),
           type: 'line',
           borderColor: 'rgba(63, 185, 80, 0.35)',
           backgroundColor: 'transparent',
@@ -293,8 +293,7 @@ function buildPriceChart(data) {
               const label = item.dataset.label;
               const raw = item.raw;
               if (raw == null) return null;
-              if (label === '거래량') return `거래량: ${formatVolume(raw)}`;
-              if (label === '거래량 MA20') return `거래량 MA20: ${formatVolume(raw)}`;
+              if (label === '거래량' || label === '거래량 MA20') return `${label}: ${formatVolume(raw)}`;
               if (label.startsWith('RSI')) return `${label}: ${Number(raw).toFixed(2)}`;
               if (label.startsWith('MACD')) return `${label}: ${Number(raw).toFixed(4)}`;
               return `${label}: ${formatPrice(raw, data.meta.currency)}`;
@@ -350,6 +349,81 @@ function buildPriceChart(data) {
       },
     },
   });
+}
+
+function buildBacktestChart(backtest) {
+  destroyChart('backtest');
+
+  const canvas = document.getElementById('backtestChart');
+  if (!canvas || !backtest?.equityCurve?.length) return;
+
+  const labels = backtest.equityCurve.map(item => item.date);
+  const strategyReturns = backtest.equityCurve.map(item => item.cumulativeReturnPct);
+  const buyHold = buildBuyHoldCurve(backtest.results);
+
+  chartInstances.backtest = new Chart(canvas.getContext('2d'), {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: '전략 누적 수익률',
+          data: strategyReturns,
+          borderColor: '#58a6ff',
+          backgroundColor: 'rgba(88, 166, 255, 0.12)',
+          borderWidth: 2,
+          pointRadius: 0,
+          tension: 0.18,
+          fill: false,
+        },
+        {
+          label: 'Buy & Hold',
+          data: buyHold,
+          borderColor: '#d29922',
+          backgroundColor: 'rgba(210, 153, 34, 0.12)',
+          borderWidth: 1.5,
+          pointRadius: 0,
+          tension: 0.18,
+          borderDash: [6, 4],
+          fill: false,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: true, labels: { usePointStyle: true, boxWidth: 10 } },
+        tooltip: {
+          callbacks: {
+            label(item) {
+              return `${item.dataset.label}: ${Number(item.raw).toFixed(2)}%`;
+            },
+          },
+        },
+      },
+      scales: {
+        x: {
+          ticks: { maxTicksLimit: 10, maxRotation: 0 },
+          grid: { color: '#21262d' },
+        },
+        y: {
+          ticks: {
+            callback: value => `${Number(value).toFixed(0)}%`,
+          },
+          grid: { color: '#21262d' },
+        },
+      },
+    },
+  });
+}
+
+function buildBuyHoldCurve(results) {
+  if (!Array.isArray(results) || results.length === 0) return [];
+  const firstClose = results[0].close;
+  if (firstClose == null || firstClose === 0) return results.map(() => null);
+  return results.map(item => ((item.close / firstClose) - 1) * 100);
 }
 
 function buildLevelDatasets(labels, levels, prefix, color) {

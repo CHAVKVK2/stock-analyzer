@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { resolveTickerAsync } from '../services/tickerResolver.js';
 import { getPriceHistory, getFinancials } from '../services/yahooFinanceService.js';
-import { calculateTechnicalAnalysis, calculateTechnicalAnalysisForDate } from '../services/technicalService.js';
+import { calculateBacktest, calculateTechnicalAnalysis, calculateTechnicalAnalysisForDate } from '../services/technicalService.js';
 
 const router = Router();
 const VALID_RANGES = new Set(['1mo', '3mo', '6mo', '1y', '2y', '5y']);
@@ -74,6 +74,28 @@ router.get('/signal-date', async (req, res, next) => {
         signal,
       },
       snapshot: datedAnalysis.snapshot,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// GET /api/stock/backtest?ticker=AAPL&startDate=2024-01-01&endDate=2024-12-31&range=5y&suffix=auto
+router.get('/backtest', async (req, res, next) => {
+  try {
+    const { ticker, startDate, endDate, range = '5y', suffix = 'auto' } = req.query;
+    if (!ticker) return res.status(400).json({ error: '종목 코드(ticker) 파라미터가 필요합니다.' });
+    if (!startDate || !endDate) return res.status(400).json({ error: '시작일(startDate)과 종료일(endDate)이 필요합니다.' });
+    if (!VALID_RANGES.has(range)) return res.status(400).json({ error: `유효하지 않은 range: ${range}` });
+
+    const resolvedTicker = await resolveTickerAsync(ticker, suffix);
+    const priceData = await getPriceHistory(resolvedTicker, range);
+    const backtest = calculateBacktest(priceData.prices, startDate, endDate);
+
+    res.json({
+      ticker,
+      resolvedTicker,
+      ...backtest,
     });
   } catch (err) {
     next(err);

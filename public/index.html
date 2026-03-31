@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Stock Analyzer</title>
-  <link rel="stylesheet" href="/css/styles.css?v=20260331d" />
+  <link rel="stylesheet" href="/css/styles.css?v=20260331f" />
 </head>
 <body>
   <header class="header">
@@ -96,7 +96,7 @@
         <section id="signalOverview" class="signal-overview hidden">
           <div class="signal-overview-top">
             <div class="signal-title-group">
-              <span class="eyebrow">신호 엔진</span>
+              <span class="eyebrow">현재 시그널</span>
               <div class="signal-headline-row">
                 <h3 id="signalHeadline" class="signal-headline"></h3>
                 <span id="signalStrength" class="signal-strength"></span>
@@ -109,7 +109,7 @@
 
           <div id="signalSummaryBody" class="signal-summary-body">
             <div class="signal-panel">
-              <div class="signal-panel-title">이 신호의 근거</div>
+              <div class="signal-panel-title">신호 근거</div>
               <ul id="signalReasons" class="signal-list"></ul>
             </div>
             <div class="signal-panel">
@@ -119,26 +119,97 @@
           </div>
         </section>
 
+        <div class="section-toggle-row">
+          <label class="section-toggle-control">
+            <input type="checkbox" id="toggleRulesSection" />
+            <span class="section-toggle-box"></span>
+            <span class="section-toggle-text">신호 계산 설명</span>
+          </label>
+        </div>
+
+        <section id="rulesSection" class="historical-signal-card hidden">
+          <div class="historical-signal-header">
+            <div>
+              <div class="historical-signal-eyebrow">How It Works</div>
+              <h3 class="historical-signal-title">현재 엔진이 점수를 계산하는 방식</h3>
+            </div>
+          </div>
+
+          <div class="rules-grid">
+            <div class="signal-panel">
+              <div class="signal-panel-title">매수 점수 규칙</div>
+              <ul class="signal-list">
+                <li>`EMA20 > EMA50` 이면 +8</li>
+                <li>`EMA50 > SMA200` 이면 +8</li>
+                <li>종가가 `EMA20` 위면 +5, `SMA200` 위면 +5</li>
+                <li>`ADX > 25` 이고 `+DI > -DI` 이면 +4</li>
+                <li>MACD 골든크로스면 +8, 히스토그램 개선이면 +4</li>
+                <li>`RSI 45~65` 이면 +6, 과매도 반등이면 +7, `RSI > 75` 이면 -6</li>
+                <li>거래량 비율이 `1.5x` 이상이면 +8, 상승일에 `1.2x` 이상이면 +5</li>
+                <li>OBV 상승이면 +4, 저항 돌파와 거래량 급증 동반이면 +3</li>
+                <li>지지선 근처면 +6, 저항 돌파면 +8, 볼린저 상단 돌파는 -3</li>
+                <li>`ATR / 종가 <= 3%` 이면 +5, `>= 6%` 이면 -3</li>
+              </ul>
+            </div>
+
+            <div class="signal-panel">
+              <div class="signal-panel-title">매도 점수 규칙</div>
+              <ul class="signal-list">
+                <li>`EMA20 < EMA50` 이면 +8</li>
+                <li>`EMA50 < SMA200` 이면 +8</li>
+                <li>종가가 `EMA20` 아래면 +5, `SMA200` 아래면 +5</li>
+                <li>`ADX > 25` 이고 `-DI > +DI` 이면 +4</li>
+                <li>MACD 데드크로스면 +8, 히스토그램 악화면 +4</li>
+                <li>`RSI <= 35` 이면 +6, 과열권 하락 전환이면 +7, `RSI < 25` 이면 -6</li>
+                <li>하락일에 거래량 비율이 `1.5x` 이상이면 +8</li>
+                <li>지지선 이탈과 거래량 증가가 동반되면 +7</li>
+                <li>OBV 하락이면 +5, 저항선 근처면 +5, 볼린저 하단 이탈이면 +2</li>
+                <li>`ATR / 종가 >= 4%` 이면 +5</li>
+              </ul>
+            </div>
+
+            <div class="signal-panel">
+              <div class="signal-panel-title">최종 신호 규칙</div>
+              <ul class="signal-list">
+                <li>매수 점수와 매도 점수 차이가 `10점 미만`이면 `HOLD`</li>
+                <li>매수 점수가 더 높으면 `BUY`</li>
+                <li>매도 점수가 더 높으면 `SELL`</li>
+                <li>강도는 우세 점수 기준으로 계산</li>
+                <li>`80+`: very strong, `65+`: strong, `50+`: watch, 그 미만: weak</li>
+                <li>Point-in-Time과 Backtest는 항상 선택한 날짜까지의 데이터만 사용</li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        <div class="section-toggle-row">
+          <label class="section-toggle-control">
+            <input type="checkbox" id="togglePointInTimeSection" />
+            <span class="section-toggle-box"></span>
+            <span class="section-toggle-text">Point-in-Time</span>
+          </label>
+        </div>
+
         <section id="historicalSignalSection" class="historical-signal-card hidden">
           <div class="historical-signal-header">
             <div>
-              <div class="historical-signal-eyebrow">과거 신호 조회</div>
-              <h3 class="historical-signal-title">특정 날짜 신호 엔진</h3>
+              <div class="historical-signal-eyebrow">Point-in-Time</div>
+              <h3 class="historical-signal-title">과거 단일 날짜 신호 조회</h3>
             </div>
             <div class="historical-signal-controls">
               <input type="date" id="historicalDateInput" class="historical-date-input" />
-              <button id="historicalSignalBtn" class="search-btn historical-btn">조회</button>
+              <button id="historicalSignalBtn" class="search-btn historical-btn">계산</button>
             </div>
           </div>
 
           <div id="historicalSignalResult" class="historical-signal-result hidden">
             <div class="historical-signal-summary">
               <div class="historical-signal-summary-item">
-                <span class="historical-label">요청 날짜</span>
+                <span class="historical-label">선택한 날짜</span>
                 <strong id="historicalRequestedDate"></strong>
               </div>
               <div class="historical-signal-summary-item">
-                <span class="historical-label">실제 계산 날짜</span>
+                <span class="historical-label">실제 계산 기준일</span>
                 <strong id="historicalActualDate"></strong>
               </div>
               <div class="historical-signal-summary-item">
@@ -155,14 +226,92 @@
               <div class="historical-indicator-item"><span>RSI</span><strong id="historicalRsi"></strong></div>
               <div class="historical-indicator-item"><span>MACD</span><strong id="historicalMacd"></strong></div>
               <div class="historical-indicator-item"><span>MACD 시그널</span><strong id="historicalMacdSignal"></strong></div>
-              <div class="historical-indicator-item"><span>볼린저 중심</span><strong id="historicalBbMiddle"></strong></div>
+              <div class="historical-indicator-item"><span>볼린저 중심선</span><strong id="historicalBbMiddle"></strong></div>
               <div class="historical-indicator-item"><span>EMA20 / EMA50</span><strong id="historicalEmaPair"></strong></div>
               <div class="historical-indicator-item"><span>ATR14 / ADX14</span><strong id="historicalAtrAdx"></strong></div>
               <div class="historical-indicator-item"><span>거래량 비율</span><strong id="historicalVolumeRatio"></strong></div>
               <div class="historical-indicator-item"><span>지지 / 저항</span><strong id="historicalLevels"></strong></div>
             </div>
+
+            <div class="breakdown-grid">
+              <div class="signal-panel">
+                <div class="signal-panel-title">매수 점수 구성</div>
+                <div id="historicalBuyBreakdown" class="breakdown-list"></div>
+              </div>
+              <div class="signal-panel">
+                <div class="signal-panel-title">매도 점수 구성</div>
+                <div id="historicalSellBreakdown" class="breakdown-list"></div>
+              </div>
+            </div>
           </div>
         </section>
+
+        <div class="section-toggle-row">
+          <label class="section-toggle-control">
+            <input type="checkbox" id="toggleBacktestSection" />
+            <span class="section-toggle-box"></span>
+            <span class="section-toggle-text">Backtest</span>
+          </label>
+        </div>
+
+        <section id="backtestSection" class="backtest-card hidden">
+          <div class="historical-signal-header">
+            <div>
+              <div class="historical-signal-eyebrow">Backtest</div>
+              <h3 class="historical-signal-title">날짜 구간 백테스트</h3>
+            </div>
+            <div class="historical-signal-controls">
+              <input type="date" id="backtestStartDate" class="historical-date-input" />
+              <input type="date" id="backtestEndDate" class="historical-date-input" />
+              <button id="backtestBtn" class="search-btn historical-btn">실행</button>
+            </div>
+          </div>
+
+          <div id="backtestResult" class="historical-signal-result hidden">
+            <div class="backtest-summary">
+              <div class="historical-signal-summary-item"><span class="historical-label">누적 수익률</span><strong id="backtestCumulativeReturn"></strong></div>
+              <div class="historical-signal-summary-item"><span class="historical-label">매매 횟수</span><strong id="backtestTradeCount"></strong></div>
+              <div class="historical-signal-summary-item"><span class="historical-label">승률</span><strong id="backtestWinRate"></strong></div>
+              <div class="historical-signal-summary-item"><span class="historical-label">MDD</span><strong id="backtestMdd"></strong></div>
+              <div class="historical-signal-summary-item"><span class="historical-label">Buy & Hold</span><strong id="backtestBuyHold"></strong></div>
+              <div class="historical-signal-summary-item"><span class="historical-label">실제 기간</span><strong id="backtestActualRange"></strong></div>
+            </div>
+
+            <div class="chart-card chart-card--tall backtest-chart-card">
+              <div class="chart-header">
+                <span class="chart-title">누적 수익률 곡선</span>
+              </div>
+              <div class="chart-wrap">
+                <canvas id="backtestChart"></canvas>
+              </div>
+            </div>
+
+            <div class="table-container backtest-table-wrap">
+              <table class="fin-table backtest-table">
+                <thead>
+                  <tr>
+                    <th>날짜</th>
+                    <th>종가</th>
+                    <th>매수 점수</th>
+                    <th>매도 점수</th>
+                    <th>신호</th>
+                    <th>포지션</th>
+                    <th>누적 수익률</th>
+                  </tr>
+                </thead>
+                <tbody id="backtestTableBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <div class="section-toggle-row">
+          <label class="section-toggle-control">
+            <input type="checkbox" id="toggleFearGreedSection" />
+            <span class="section-toggle-box"></span>
+            <span class="section-toggle-text">시장심리</span>
+          </label>
+        </div>
 
         <section id="fearGreedSection" class="fear-greed-card hidden">
           <div class="fear-greed-header">
@@ -175,7 +324,7 @@
           <div class="fear-greed-body">
             <div class="fear-greed-score-wrap">
               <div id="fearGreedValue" class="fear-greed-value">-</div>
-              <div id="fearGreedMeta" class="fear-greed-meta"></div>
+              <div id="fearGreedMeta" class="fearGreed-meta"></div>
             </div>
             <div class="fear-greed-scale">
               <div class="fear-greed-scale-bar">
@@ -200,58 +349,69 @@
           <div id="newsList" class="news-list"></div>
         </section>
 
-        <div class="range-selector">
-          <span class="range-label">기간:</span>
-          <button class="range-btn" data-range="1mo">1M</button>
-          <button class="range-btn" data-range="3mo">3M</button>
-          <button class="range-btn active" data-range="6mo">6M</button>
-          <button class="range-btn" data-range="1y">1Y</button>
-          <button class="range-btn" data-range="2y">2Y</button>
+        <div class="section-toggle-row">
+          <label class="section-toggle-control">
+            <input type="checkbox" id="toggleChartSection" />
+            <span class="section-toggle-box"></span>
+            <span class="section-toggle-text">차트기간과 주가흐름</span>
+          </label>
         </div>
 
-        <div class="charts-container">
-          <div class="chart-card chart-card--tall">
-            <div class="chart-header">
-              <span class="chart-title">주가 흐름</span>
-              <div class="chart-legend">
-                <span class="legend-item"><span class="legend-dot" style="background:#58a6ff"></span>종가</span>
-                <span class="legend-item"><span class="legend-dot" style="background:#f0883e"></span>이동평균선</span>
-                <span class="legend-item"><span class="legend-dot" style="background:#8b949e"></span>볼린저 밴드</span>
-                <span class="legend-item"><span class="legend-dot" style="background:#d29922"></span>거래량 MA20</span>
-              </div>
-            </div>
-            <div class="chart-wrap">
-              <canvas id="priceChart"></canvas>
-            </div>
+        <div id="chartSection" class="hidden">
+          <div class="range-selector">
+            <span class="range-label">차트 기간:</span>
+            <button class="range-btn" data-range="1mo">1M</button>
+            <button class="range-btn" data-range="3mo">3M</button>
+            <button class="range-btn active" data-range="6mo">6M</button>
+            <button class="range-btn" data-range="1y">1Y</button>
+            <button class="range-btn" data-range="2y">2Y</button>
+            <button class="range-btn" data-range="5y">5Y</button>
           </div>
 
-          <div class="indicator-toggles">
-            <span class="indicator-toggles-label">지표 토글</span>
-            <label class="indicator-toggle">
-              <input type="checkbox" id="toggleMA" checked />
-              <span class="toggle-dot" style="background:#f0883e"></span>
-              EMA / SMA
-            </label>
-            <label class="indicator-toggle">
-              <input type="checkbox" id="toggleBB" checked />
-              <span class="toggle-dot" style="background:#8b949e"></span>
-              볼린저 밴드
-            </label>
-            <label class="indicator-toggle">
-              <input type="checkbox" id="toggleLevels" checked />
-              <span class="toggle-dot" style="background:#3fb950"></span>
-              지지선 / 저항선
-            </label>
-            <label class="indicator-toggle">
-              <input type="checkbox" id="toggleRSI" />
-              <span class="toggle-dot" style="background:#bc8cff"></span>
-              RSI
-            </label>
-            <label class="indicator-toggle">
-              <input type="checkbox" id="toggleMACD" />
-              <span class="toggle-dot" style="background:#58a6ff"></span>
-              MACD
-            </label>
+          <div class="charts-container">
+            <div class="chart-card chart-card--tall">
+              <div class="chart-header">
+                <span class="chart-title">주가 흐름</span>
+                <div class="chart-legend">
+                  <span class="legend-item"><span class="legend-dot" style="background:#58a6ff"></span>종가</span>
+                  <span class="legend-item"><span class="legend-dot" style="background:#f0883e"></span>이동평균선</span>
+                  <span class="legend-item"><span class="legend-dot" style="background:#8b949e"></span>볼린저 밴드</span>
+                  <span class="legend-item"><span class="legend-dot" style="background:#d29922"></span>거래량 MA20</span>
+                </div>
+              </div>
+              <div class="chart-wrap">
+                <canvas id="priceChart"></canvas>
+              </div>
+            </div>
+
+            <div class="indicator-toggles">
+              <span class="indicator-toggles-label">지표 토글</span>
+              <label class="indicator-toggle">
+                <input type="checkbox" id="toggleMA" checked />
+                <span class="toggle-dot" style="background:#f0883e"></span>
+                EMA / SMA
+              </label>
+              <label class="indicator-toggle">
+                <input type="checkbox" id="toggleBB" checked />
+                <span class="toggle-dot" style="background:#8b949e"></span>
+                볼린저 밴드
+              </label>
+              <label class="indicator-toggle">
+                <input type="checkbox" id="toggleLevels" checked />
+                <span class="toggle-dot" style="background:#3fb950"></span>
+                지지 / 저항선
+              </label>
+              <label class="indicator-toggle">
+                <input type="checkbox" id="toggleRSI" />
+                <span class="toggle-dot" style="background:#bc8cff"></span>
+                RSI
+              </label>
+              <label class="indicator-toggle">
+                <input type="checkbox" id="toggleMACD" />
+                <span class="toggle-dot" style="background:#58a6ff"></span>
+                MACD
+              </label>
+            </div>
           </div>
         </div>
       </div>
@@ -284,9 +444,8 @@
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
-
-  <script src="/js/charts.js?v=20260331d"></script>
+  <script src="/js/charts.js?v=20260331e"></script>
   <script src="/js/financials.js?v=20260331d"></script>
-  <script src="/js/app.js?v=20260331d"></script>
+  <script src="/js/app.js?v=20260331f"></script>
 </body>
 </html>
