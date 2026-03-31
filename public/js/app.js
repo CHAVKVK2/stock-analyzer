@@ -254,10 +254,10 @@ function renderSignalOverview(data) {
   signalRisks.innerHTML = (summary.risks || []).map(risk => `<li>${escapeHtml(risk)}</li>`).join('');
 
   scoreCards.innerHTML = `
-    ${renderScoreCard('Buy Score', scores.buyScore, 'Positive alignment across trend, momentum, and volume.', 'buy')}
-    ${renderScoreCard('Sell Score', scores.sellScore, 'Distribution pressure and downside follow-through.', 'sell')}
-    ${renderScoreCard('Trend State', marketState.trendStrength, `Trend: ${formatSentenceCase(marketState.trend || 'unknown')}`, 'neutral')}
-    ${renderScoreCard('Volatility', marketState.volatility, `Momentum: ${formatSentenceCase(marketState.momentum || 'unknown')}`, 'neutral')}
+    ${renderScoreCard('매수 점수', scores.buyScore, '추세, 모멘텀, 거래량 흐름을 종합한 점수입니다.', 'buy')}
+    ${renderScoreCard('매도 점수', scores.sellScore, '하락 압력과 약세 흐름을 종합한 점수입니다.', 'sell')}
+    ${renderScoreCard('추세 상태', marketState.trendStrength, `방향: ${formatLocalizedValue(marketState.trend || 'unknown')}`, 'neutral')}
+    ${renderScoreCard('변동성', marketState.volatility, `모멘텀: ${formatLocalizedValue(marketState.momentum || 'unknown')}`, 'neutral')}
   `;
 
   marketBadges.innerHTML = [
@@ -284,7 +284,7 @@ function renderScoreCard(label, value, hint, tone) {
 }
 
 function renderBadge(value) {
-  return `<span class="market-badge">${escapeHtml(formatSentenceCase(String(value).replace(/_/g, ' ')))}</span>`;
+  return `<span class="market-badge">${escapeHtml(formatLocalizedValue(value))}</span>`;
 }
 
 function resetSignalPanels() {
@@ -472,24 +472,52 @@ function formatPrice(value, currency) {
 
 function formatSignal(signal) {
   switch (signal) {
-    case 'BUY': return 'Buy Bias';
-    case 'SELL': return 'Sell Bias';
-    default: return 'Neutral Watch';
+    case 'BUY': return '매수 우위';
+    case 'SELL': return '매도 우위';
+    default: return '중립 관찰';
   }
 }
 
 function formatStrength(strength) {
-  return formatSentenceCase(String(strength || 'watch').replace(/_/g, ' '));
+  return formatLocalizedValue(strength || 'watch');
 }
 
 function formatScoreValue(value) {
   if (typeof value === 'number') return `${value}/100`;
-  return formatSentenceCase(String(value || 'unknown').replace(/_/g, ' '));
+  return formatLocalizedValue(value || 'unknown');
 }
 
 function formatSentenceCase(value) {
   if (!value) return '';
   return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
+function formatLocalizedValue(value) {
+  const normalized = String(value || '').trim().toLowerCase().replace(/\s+/g, '_');
+  const labels = {
+    buy: '매수',
+    sell: '매도',
+    neutral: '중립',
+    unknown: '알 수 없음',
+    watch: '관찰',
+    weak: '약함',
+    moderate: '보통',
+    strong: '강함',
+    very_strong: '매우 강함',
+    uptrend: '상승 추세',
+    downtrend: '하락 추세',
+    range: '횡보',
+    bullish: '강세',
+    bearish: '약세',
+    high: '높음',
+    low: '낮음',
+    above_ema20: 'EMA20 위',
+    below_ema20: 'EMA20 아래',
+    below_sma200: 'SMA200 아래',
+  };
+
+  if (labels[normalized]) return labels[normalized];
+  return formatSentenceCase(String(value).replace(/_/g, ' '));
 }
 
 function escapeHtml(str) {
