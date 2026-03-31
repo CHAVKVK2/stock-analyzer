@@ -1,6 +1,5 @@
 'use strict';
 
-// ===== 상태 =====
 const state = {
   currentTicker: null,
   currentRange: '6mo',
@@ -10,18 +9,24 @@ const state = {
   currency: 'USD',
 };
 
-// ===== DOM 참조 =====
-const tickerInput   = document.getElementById('tickerInput');
-const suffixSelect  = document.getElementById('suffixSelect');
-const searchBtn     = document.getElementById('searchBtn');
-const autocomplete  = document.getElementById('autocomplete');
-const errorBanner   = document.getElementById('errorBanner');
-const errorMsg      = document.getElementById('errorMsg');
-const stockHeader   = document.getElementById('stockHeader');
+const tickerInput = document.getElementById('tickerInput');
+const suffixSelect = document.getElementById('suffixSelect');
+const searchBtn = document.getElementById('searchBtn');
+const autocomplete = document.getElementById('autocomplete');
+const errorBanner = document.getElementById('errorBanner');
+const errorMsg = document.getElementById('errorMsg');
+const stockHeader = document.getElementById('stockHeader');
 const loadingSpinner = document.getElementById('loadingSpinner');
-const mainContent   = document.getElementById('mainContent');
+const mainContent = document.getElementById('mainContent');
+const signalOverview = document.getElementById('signalOverview');
+const signalHeadline = document.getElementById('signalHeadline');
+const signalStrength = document.getElementById('signalStrength');
+const signalReasons = document.getElementById('signalReasons');
+const signalRisks = document.getElementById('signalRisks');
+const signalSummaryBody = document.getElementById('signalSummaryBody');
+const scoreCards = document.getElementById('scoreCards');
+const marketBadges = document.getElementById('marketBadges');
 
-// ===== 초기화 =====
 document.addEventListener('DOMContentLoaded', () => {
   setupSearch();
   setupTabs();
@@ -31,19 +36,18 @@ document.addEventListener('DOMContentLoaded', () => {
   loadFromURL();
 });
 
-// ===== URL 상태 =====
 function loadFromURL() {
   const params = new URLSearchParams(window.location.search);
   const ticker = params.get('ticker');
-  const range  = params.get('range') || '6mo';
-  if (ticker) {
-    tickerInput.value = ticker;
-    state.currentRange = range;
-    document.querySelectorAll('.range-btn').forEach(b => {
-      b.classList.toggle('active', b.dataset.range === range);
-    });
-    search(ticker, range);
-  }
+  const range = params.get('range') || '6mo';
+  if (!ticker) return;
+
+  tickerInput.value = ticker;
+  state.currentRange = range;
+  document.querySelectorAll('.range-btn').forEach(button => {
+    button.classList.toggle('active', button.dataset.range === range);
+  });
+  search(ticker, range);
 }
 
 function pushURL(ticker, range) {
@@ -53,28 +57,25 @@ function pushURL(ticker, range) {
   history.pushState({}, '', url);
 }
 
-// ===== 검색 기능 =====
 function setupSearch() {
   searchBtn.addEventListener('click', triggerSearch);
-  tickerInput.addEventListener('keydown', e => {
-    if (e.key === 'Enter') triggerSearch();
+  tickerInput.addEventListener('keydown', event => {
+    if (event.key === 'Enter') triggerSearch();
   });
 
-  // 자동완성
   let debounceTimer;
   tickerInput.addEventListener('input', () => {
     clearTimeout(debounceTimer);
-    const q = tickerInput.value.trim();
-    if (q.length < 1) {
+    const query = tickerInput.value.trim();
+    if (query.length < 1) {
       autocomplete.classList.add('hidden');
       return;
     }
-    debounceTimer = setTimeout(() => fetchAutocomplete(q), 300);
+    debounceTimer = setTimeout(() => fetchAutocomplete(query), 250);
   });
 
-  // 외부 클릭 시 드롭다운 닫기
-  document.addEventListener('click', e => {
-    if (!e.target.closest('.search-wrapper')) {
+  document.addEventListener('click', event => {
+    if (!event.target.closest('.search-wrapper')) {
       autocomplete.classList.add('hidden');
     }
   });
@@ -84,16 +85,15 @@ async function triggerSearch() {
   const raw = tickerInput.value.trim();
   if (!raw) return;
 
-  // 자동완성이 열려 있으면 첫 번째 항목 자동 선택
   if (!autocomplete.classList.contains('hidden')) {
     const firstItem = autocomplete.querySelector('.autocomplete-item');
     if (firstItem) {
-      const sym = firstItem.dataset.symbol;
-      tickerInput.value = sym;
+      const symbol = firstItem.dataset.symbol;
+      tickerInput.value = symbol;
       autocomplete.classList.add('hidden');
-      if (sym.includes('.')) suffixSelect.value = 'none';
+      if (symbol.includes('.')) suffixSelect.value = 'none';
       state.currentRange = getActiveRange();
-      search(sym, state.currentRange);
+      search(symbol, state.currentRange);
       return;
     }
   }
@@ -101,34 +101,35 @@ async function triggerSearch() {
   autocomplete.classList.add('hidden');
   state.currentRange = getActiveRange();
 
-  // 소문자·공백·한글이 포함되면 회사명으로 판단 → 검색 API로 티커 변환
-  if (/[a-z\s가-힣]/.test(raw)) {
+  if (/[a-zA-Z\u3131-\u318E\uAC00-\uD7A3\s]/.test(raw)) {
     const { symbol, hasDot } = await resolveToTicker(raw);
     tickerInput.value = symbol;
     if (hasDot) suffixSelect.value = 'none';
     search(symbol, state.currentRange);
-  } else {
-    search(raw, state.currentRange);
+    return;
   }
+
+  search(raw, state.currentRange);
 }
 
-// 회사명 → 티커 변환 (검색 API 첫 번째 결과 사용)
 async function resolveToTicker(query) {
   try {
-    const res = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
-    const data = await res.json();
+    const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
+    const data = await response.json();
     const top = (data.suggestions || [])[0];
     if (top) return { symbol: top.symbol, hasDot: top.symbol.includes('.') };
-  } catch {}
+  } catch (_) {
+    // Fall through to raw query.
+  }
   return { symbol: query, hasDot: query.includes('.') };
 }
 
-async function fetchAutocomplete(q) {
+async function fetchAutocomplete(query) {
   try {
-    const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
-    const data = await res.json();
+    const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
+    const data = await response.json();
     renderAutocomplete(data.suggestions || []);
-  } catch (e) {
+  } catch (_) {
     autocomplete.classList.add('hidden');
   }
 }
@@ -138,21 +139,21 @@ function renderAutocomplete(suggestions) {
     autocomplete.classList.add('hidden');
     return;
   }
-  autocomplete.innerHTML = suggestions.map(s => `
-    <div class="autocomplete-item" data-symbol="${s.symbol}">
-      <span class="autocomplete-symbol">${s.symbol}</span>
-      <span class="autocomplete-name">${s.name}</span>
-      <span class="autocomplete-exchange">${s.exchange}</span>
+
+  autocomplete.innerHTML = suggestions.map(item => `
+    <div class="autocomplete-item" data-symbol="${escapeAttr(item.symbol)}">
+      <span class="autocomplete-symbol">${escapeHtml(item.symbol)}</span>
+      <span class="autocomplete-name">${escapeHtml(item.name)}</span>
+      <span class="autocomplete-exchange">${escapeHtml(item.exchange || '')}</span>
     </div>
   `).join('');
 
   autocomplete.querySelectorAll('.autocomplete-item').forEach(item => {
     item.addEventListener('click', () => {
-      const sym = item.dataset.symbol;
-      tickerInput.value = sym;
+      const symbol = item.dataset.symbol;
+      tickerInput.value = symbol;
       autocomplete.classList.add('hidden');
-      // 접미사가 이미 포함된 경우 'none'으로
-      if (sym.includes('.')) suffixSelect.value = 'none';
+      if (symbol.includes('.')) suffixSelect.value = 'none';
       triggerSearch();
     });
   });
@@ -160,7 +161,6 @@ function renderAutocomplete(suggestions) {
   autocomplete.classList.remove('hidden');
 }
 
-// ===== 메인 검색 실행 =====
 async function search(ticker, range) {
   state.currentTicker = ticker;
   state.currentRange = range;
@@ -168,112 +168,152 @@ async function search(ticker, range) {
   showLoading(true);
   hideError();
   hideMainContent();
+  resetSignalPanels();
   document.getElementById('newsSection').classList.add('hidden');
 
   pushURL(ticker, range);
 
   try {
     const suffix = suffixSelect.value;
-    const [techRes, finRes] = await Promise.allSettled([
-      fetch(`/api/stock/technical?ticker=${encodeURIComponent(ticker)}&range=${range}&suffix=${suffix}`).then(r => r.json()),
-      fetch(`/api/stock/financials?ticker=${encodeURIComponent(ticker)}&suffix=${suffix}`).then(r => r.json()),
+    const [technicalResult, financialResult] = await Promise.allSettled([
+      fetch(`/api/stock/technical?ticker=${encodeURIComponent(ticker)}&range=${range}&suffix=${suffix}`).then(res => res.json()),
+      fetch(`/api/stock/financials?ticker=${encodeURIComponent(ticker)}&suffix=${suffix}`).then(res => res.json()),
     ]);
 
-    // 기술적 분석 처리
-    if (techRes.status === 'fulfilled' && !techRes.value.error) {
-      state.technicalData = techRes.value;
-      state.currency = techRes.value.meta.currency || 'USD';
-      renderStockHeader(techRes.value);
-      buildPriceChart(techRes.value);
-      toggleBollingerBands(document.getElementById('toggleBB').checked);
-      toggleRSI(document.getElementById('toggleRSI').checked);
-      toggleMACD(document.getElementById('toggleMACD').checked);
-    } else {
-      const errMsg = (techRes.value && techRes.value.error) || '기술적 분석 데이터를 불러오지 못했습니다.';
-      showError(errMsg);
+    if (technicalResult.status !== 'fulfilled' || technicalResult.value.error) {
+      const errorText = technicalResult.status === 'fulfilled'
+        ? technicalResult.value.error
+        : 'Failed to load technical analysis data.';
+      showError(errorText || 'Failed to load technical analysis data.');
       showLoading(false);
       return;
     }
 
-    // 재무제표 처리
-    if (finRes.status === 'fulfilled' && !finRes.value.error) {
-      state.financialData = finRes.value;
-      renderAllFinancials(finRes.value, state.currentFinancialPeriod, state.currency);
+    state.technicalData = technicalResult.value;
+    state.currency = technicalResult.value.meta.currency || 'USD';
+    renderStockHeader(technicalResult.value);
+    renderSignalOverview(technicalResult.value);
+    buildPriceChart(technicalResult.value);
+    syncIndicatorToggleState();
+
+    if (financialResult.status === 'fulfilled' && !financialResult.value.error) {
+      state.financialData = financialResult.value;
+      renderAllFinancials(financialResult.value, state.currentFinancialPeriod, state.currency);
     }
-    // 재무제표는 없어도 기술적 분석은 표시
 
     showLoading(false);
     showMainContent();
-
-    // 뉴스는 메인 콘텐츠 표시 후 비동기 로드
-    fetchAndRenderNews(techRes.value.resolvedTicker);
-  } catch (err) {
-    showError('서버 연결에 실패했습니다. 네트워크를 확인해주세요.');
+    fetchAndRenderNews(technicalResult.value.resolvedTicker);
+  } catch (_) {
+    showError('Server connection failed. Please try again.');
     showLoading(false);
   }
 }
 
-// ===== 종목 헤더 렌더링 =====
 function renderStockHeader(data) {
-  document.getElementById('stockName').textContent   = data.meta.longName || data.ticker;
+  document.getElementById('stockName').textContent = data.meta.longName || data.ticker;
   document.getElementById('stockTicker').textContent = data.resolvedTicker;
   document.getElementById('stockExchange').textContent = data.meta.exchangeName || '';
 
   const price = data.meta.regularMarketPrice;
   const change = data.meta.regularMarketChangePercent;
   const currency = data.meta.currency || 'USD';
-  const symbol = currency === 'KRW' ? '₩' : '$';
 
   if (price != null) {
-    document.getElementById('stockPrice').textContent =
-      currency === 'KRW'
-        ? symbol + Math.round(price).toLocaleString('ko-KR')
-        : symbol + price.toFixed(2);
+    document.getElementById('stockPrice').textContent = formatPrice(price, currency);
   } else {
-    // 최신 종가 사용
     const last = data.prices[data.prices.length - 1];
-    if (last) {
-      document.getElementById('stockPrice').textContent =
-        currency === 'KRW'
-          ? symbol + Math.round(last.close).toLocaleString('ko-KR')
-          : symbol + last.close.toFixed(2);
-    }
+    document.getElementById('stockPrice').textContent = last ? formatPrice(last.close, currency) : '';
   }
 
   const changeEl = document.getElementById('stockChange');
   if (change != null) {
     const sign = change >= 0 ? '+' : '';
     changeEl.textContent = `${sign}${change.toFixed(2)}%`;
-    changeEl.className = 'stock-change ' + (change >= 0 ? 'positive' : 'negative');
+    changeEl.className = `stock-change ${change >= 0 ? 'positive' : 'negative'}`;
   } else {
     changeEl.textContent = '';
+    changeEl.className = 'stock-change';
   }
 
   document.getElementById('stockCurrency').textContent = currency;
   stockHeader.classList.remove('hidden');
 }
 
-// ===== 탭 전환 =====
+function renderSignalOverview(data) {
+  const summary = data.signalSummary || {};
+  const scores = data.signalScores || {};
+  const marketState = data.marketState || {};
+
+  signalOverview.classList.remove('hidden');
+  signalHeadline.textContent = formatSignal(summary.signal);
+  signalHeadline.className = `signal-headline signal-${String(summary.signal || 'neutral').toLowerCase()}`;
+  signalStrength.textContent = formatStrength(summary.strength);
+
+  signalReasons.innerHTML = (summary.reasons || []).map(reason => `<li>${escapeHtml(reason)}</li>`).join('');
+  signalRisks.innerHTML = (summary.risks || []).map(risk => `<li>${escapeHtml(risk)}</li>`).join('');
+
+  scoreCards.innerHTML = `
+    ${renderScoreCard('Buy Score', scores.buyScore, 'Positive alignment across trend, momentum, and volume.', 'buy')}
+    ${renderScoreCard('Sell Score', scores.sellScore, 'Distribution pressure and downside follow-through.', 'sell')}
+    ${renderScoreCard('Trend State', marketState.trendStrength, `Trend: ${formatSentenceCase(marketState.trend || 'unknown')}`, 'neutral')}
+    ${renderScoreCard('Volatility', marketState.volatility, `Momentum: ${formatSentenceCase(marketState.momentum || 'unknown')}`, 'neutral')}
+  `;
+
+  marketBadges.innerHTML = [
+    marketState.trend ? renderBadge(marketState.trend) : '',
+    marketState.trendStrength ? renderBadge(marketState.trendStrength) : '',
+    marketState.momentum ? renderBadge(marketState.momentum) : '',
+    marketState.volatility ? renderBadge(marketState.volatility) : '',
+    marketState.priceLocation ? renderBadge(marketState.priceLocation) : '',
+  ].join('');
+
+  const reasonsCount = (summary.reasons || []).length;
+  const risksCount = (summary.risks || []).length;
+  signalSummaryBody.dataset.columns = reasonsCount && risksCount ? '2' : '1';
+}
+
+function renderScoreCard(label, value, hint, tone) {
+  return `
+    <article class="score-card score-card-${tone}">
+      <div class="score-card-label">${escapeHtml(label)}</div>
+      <div class="score-card-value">${escapeHtml(formatScoreValue(value))}</div>
+      <div class="score-card-hint">${escapeHtml(hint)}</div>
+    </article>
+  `;
+}
+
+function renderBadge(value) {
+  return `<span class="market-badge">${escapeHtml(formatSentenceCase(String(value).replace(/_/g, ' ')))}</span>`;
+}
+
+function resetSignalPanels() {
+  signalOverview.classList.add('hidden');
+  signalReasons.innerHTML = '';
+  signalRisks.innerHTML = '';
+  scoreCards.innerHTML = '';
+  marketBadges.innerHTML = '';
+}
+
 function setupTabs() {
-  document.querySelectorAll('.tab-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      const tab = btn.dataset.tab;
-      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(button => {
+    button.addEventListener('click', () => {
+      document.querySelectorAll('.tab-btn').forEach(item => item.classList.remove('active'));
+      button.classList.add('active');
+      const tab = button.dataset.tab;
+      document.querySelectorAll('.tab-content').forEach(panel => panel.classList.remove('active'));
       document.getElementById(`tab-${tab}`).classList.add('active');
     });
   });
 }
 
-// ===== 기간 버튼 =====
 function setupRangeButtons() {
-  document.querySelectorAll('.range-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
+  document.querySelectorAll('.range-btn').forEach(button => {
+    button.addEventListener('click', () => {
       if (!state.currentTicker) return;
-      document.querySelectorAll('.range-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      state.currentRange = btn.dataset.range;
+      document.querySelectorAll('.range-btn').forEach(item => item.classList.remove('active'));
+      button.classList.add('active');
+      state.currentRange = button.dataset.range;
       reloadTechnical();
     });
   });
@@ -292,10 +332,8 @@ async function reloadTechnical() {
 
   try {
     const suffix = suffixSelect.value;
-    const res = await fetch(
-      `/api/stock/technical?ticker=${encodeURIComponent(state.currentTicker)}&range=${state.currentRange}&suffix=${suffix}`
-    );
-    const data = await res.json();
+    const response = await fetch(`/api/stock/technical?ticker=${encodeURIComponent(state.currentTicker)}&range=${state.currentRange}&suffix=${suffix}`);
+    const data = await response.json();
 
     if (data.error) {
       showError(data.error);
@@ -305,51 +343,60 @@ async function reloadTechnical() {
 
     state.technicalData = data;
     renderStockHeader(data);
+    renderSignalOverview(data);
     buildPriceChart(data);
-    toggleBollingerBands(document.getElementById('toggleBB').checked);
-    toggleRSI(document.getElementById('toggleRSI').checked);
-    toggleMACD(document.getElementById('toggleMACD').checked);
+    syncIndicatorToggleState();
     pushURL(state.currentTicker, state.currentRange);
     showLoading(false);
     showMainContent();
-  } catch (err) {
-    showError('데이터를 불러오지 못했습니다.');
+  } catch (_) {
+    showError('Failed to reload technical data.');
     showLoading(false);
   }
 }
 
-// ===== 지표 토글 =====
 function setupIndicatorToggles() {
-  document.getElementById('toggleBB').addEventListener('change', e => {
-    toggleBollingerBands(e.target.checked);
+  document.getElementById('toggleBB').addEventListener('change', event => {
+    toggleBollingerBands(event.target.checked);
   });
-  document.getElementById('toggleRSI').addEventListener('change', e => {
-    toggleRSI(e.target.checked);
+  document.getElementById('toggleMA').addEventListener('change', event => {
+    toggleMovingAverages(event.target.checked);
   });
-  document.getElementById('toggleMACD').addEventListener('change', e => {
-    toggleMACD(e.target.checked);
+  document.getElementById('toggleLevels').addEventListener('change', event => {
+    toggleSupportResistance(event.target.checked);
+  });
+  document.getElementById('toggleRSI').addEventListener('change', event => {
+    toggleRSI(event.target.checked);
+  });
+  document.getElementById('toggleMACD').addEventListener('change', event => {
+    toggleMACD(event.target.checked);
   });
 }
 
-// ===== 재무제표 컨트롤 =====
+function syncIndicatorToggleState() {
+  toggleBollingerBands(document.getElementById('toggleBB').checked);
+  toggleMovingAverages(document.getElementById('toggleMA').checked);
+  toggleSupportResistance(document.getElementById('toggleLevels').checked);
+  toggleRSI(document.getElementById('toggleRSI').checked);
+  toggleMACD(document.getElementById('toggleMACD').checked);
+}
+
 function setupFinancialControls() {
-  // 서브탭
-  document.querySelectorAll('.fin-tab-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('.fin-tab-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      const tab = btn.dataset.fintab;
-      document.querySelectorAll('.fin-content').forEach(c => c.classList.remove('active'));
+  document.querySelectorAll('.fin-tab-btn').forEach(button => {
+    button.addEventListener('click', () => {
+      document.querySelectorAll('.fin-tab-btn').forEach(item => item.classList.remove('active'));
+      button.classList.add('active');
+      const tab = button.dataset.fintab;
+      document.querySelectorAll('.fin-content').forEach(panel => panel.classList.remove('active'));
       document.getElementById(`fin-${tab}`).classList.add('active');
     });
   });
 
-  // 연간/분기 토글
-  document.querySelectorAll('.period-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      state.currentFinancialPeriod = btn.dataset.period;
+  document.querySelectorAll('.period-btn').forEach(button => {
+    button.addEventListener('click', () => {
+      document.querySelectorAll('.period-btn').forEach(item => item.classList.remove('active'));
+      button.classList.add('active');
+      state.currentFinancialPeriod = button.dataset.period;
       if (state.financialData) {
         renderAllFinancials(state.financialData, state.currentFinancialPeriod, state.currency);
       }
@@ -357,23 +404,21 @@ function setupFinancialControls() {
   });
 }
 
-// ===== 뉴스 =====
-
 async function fetchAndRenderNews(ticker) {
-  const section  = document.getElementById('newsSection');
-  const list     = document.getElementById('newsList');
-  const spinner  = document.getElementById('newsLoading');
+  const section = document.getElementById('newsSection');
+  const list = document.getElementById('newsList');
+  const spinner = document.getElementById('newsLoading');
 
   section.classList.remove('hidden');
   spinner.classList.remove('hidden');
   list.innerHTML = '';
 
   try {
-    const res  = await fetch(`/api/news/${encodeURIComponent(ticker)}`);
-    const data = await res.json();
+    const response = await fetch(`/api/news/${encodeURIComponent(ticker)}`);
+    const data = await response.json();
     renderNews(data.news || []);
-  } catch {
-    list.innerHTML = '<p class="news-empty">뉴스를 불러오지 못했습니다.</p>';
+  } catch (_) {
+    list.innerHTML = '<p class="news-empty">Failed to load company news.</p>';
   } finally {
     spinner.classList.add('hidden');
   }
@@ -382,18 +427,69 @@ async function fetchAndRenderNews(ticker) {
 function renderNews(articles) {
   const list = document.getElementById('newsList');
   if (!articles.length) {
-    list.innerHTML = '<p class="news-empty">관련 뉴스가 없습니다.</p>';
+    list.innerHTML = '<p class="news-empty">No recent company news was found.</p>';
     return;
   }
-  list.innerHTML = articles.map(a => `
-    <a href="${escapeAttr(a.url)}" target="_blank" rel="noopener noreferrer" class="news-item">
-      <div class="news-headline">${escapeHtml(a.headline)}</div>
+
+  list.innerHTML = articles.map(article => `
+    <a href="${escapeAttr(article.url)}" target="_blank" rel="noopener noreferrer" class="news-item">
+      <div class="news-headline">${escapeHtml(article.headline)}</div>
       <div class="news-meta">
-        <span class="news-source">${escapeHtml(a.source)}</span>
-        <span class="news-date">${escapeHtml(a.datetime)}</span>
+        <span class="news-source">${escapeHtml(article.source)}</span>
+        <span class="news-date">${escapeHtml(article.datetime)}</span>
       </div>
     </a>
   `).join('');
+}
+
+function showLoading(show) {
+  loadingSpinner.classList.toggle('hidden', !show);
+}
+
+function showError(message) {
+  errorMsg.textContent = message;
+  errorBanner.classList.remove('hidden');
+}
+
+function hideError() {
+  errorBanner.classList.add('hidden');
+}
+
+function showMainContent() {
+  mainContent.classList.remove('hidden');
+}
+
+function hideMainContent() {
+  mainContent.classList.add('hidden');
+}
+
+function formatPrice(value, currency) {
+  if (value == null) return '';
+  const symbol = currency === 'KRW' ? 'KRW ' : '$';
+  if (currency === 'KRW') return symbol + Math.round(value).toLocaleString('ko-KR');
+  return symbol + Number(value).toFixed(2);
+}
+
+function formatSignal(signal) {
+  switch (signal) {
+    case 'BUY': return 'Buy Bias';
+    case 'SELL': return 'Sell Bias';
+    default: return 'Neutral Watch';
+  }
+}
+
+function formatStrength(strength) {
+  return formatSentenceCase(String(strength || 'watch').replace(/_/g, ' '));
+}
+
+function formatScoreValue(value) {
+  if (typeof value === 'number') return `${value}/100`;
+  return formatSentenceCase(String(value || 'unknown').replace(/_/g, ' '));
+}
+
+function formatSentenceCase(value) {
+  if (!value) return '';
+  return value.charAt(0).toUpperCase() + value.slice(1);
 }
 
 function escapeHtml(str) {
@@ -405,26 +501,7 @@ function escapeHtml(str) {
 }
 
 function escapeAttr(str) {
-  // URL은 http/https만 허용
-  const s = String(str).trim();
-  if (!/^https?:\/\//i.test(s)) return '#';
-  return s.replace(/"/g, '%22');
-}
-
-// ===== UI 헬퍼 =====
-function showLoading(show) {
-  loadingSpinner.classList.toggle('hidden', !show);
-}
-function showError(msg) {
-  errorMsg.textContent = msg;
-  errorBanner.classList.remove('hidden');
-}
-function hideError() {
-  errorBanner.classList.add('hidden');
-}
-function showMainContent() {
-  mainContent.classList.remove('hidden');
-}
-function hideMainContent() {
-  mainContent.classList.add('hidden');
+  const value = String(str).trim();
+  if (!/^https?:\/\//i.test(value)) return '#';
+  return value.replace(/"/g, '%22');
 }
