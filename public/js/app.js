@@ -7,6 +7,7 @@ const state = {
   technicalData: null,
   financialData: null,
   currency: 'USD',
+  backtestData: null,
 };
 
 const tickerInput = document.getElementById('tickerInput');
@@ -36,6 +37,7 @@ const togglePointInTimeSection = document.getElementById('togglePointInTimeSecti
 const toggleBacktestSection = document.getElementById('toggleBacktestSection');
 const toggleFearGreedSection = document.getElementById('toggleFearGreedSection');
 const toggleChartSection = document.getElementById('toggleChartSection');
+const toggleBacktestMarkersCheckbox = document.getElementById('toggleBacktestMarkers');
 const rulesSection = document.getElementById('rulesSection');
 const historicalSignalSection = document.getElementById('historicalSignalSection');
 const historicalDateInput = document.getElementById('historicalDateInput');
@@ -219,6 +221,7 @@ async function search(ticker, range) {
   resetFinancialPanels();
   resetHistoricalSignal();
   resetBacktest();
+  state.backtestData = null;
   document.getElementById('newsSection').classList.add('hidden');
 
   pushURL(ticker, range);
@@ -517,11 +520,14 @@ function prepareBacktest(data) {
 }
 
 function resetBacktest() {
+  state.backtestData = null;
   backtestResult.classList.add('hidden');
   backtestTableBody.innerHTML = '';
   backtestStartDate.value = '';
   backtestEndDate.value = '';
+  if (toggleBacktestMarkersCheckbox) toggleBacktestMarkersCheckbox.checked = false;
   if (typeof buildBacktestChart === 'function') buildBacktestChart({ equityCurve: [], results: [] });
+  if (typeof setBacktestMarkers === 'function') setBacktestMarkers(null);
 }
 
 async function fetchBacktest() {
@@ -550,6 +556,7 @@ async function fetchBacktest() {
 }
 
 function renderBacktest(data) {
+  state.backtestData = data;
   const summary = data.summary || {};
   const actualRange = data.actualRange || {};
   const results = data.results || [];
@@ -576,6 +583,12 @@ function renderBacktest(data) {
 
   if (typeof buildBacktestChart === 'function') {
     buildBacktestChart(data);
+  }
+  if (typeof setBacktestMarkers === 'function') {
+    setBacktestMarkers(data);
+  }
+  if (typeof toggleBacktestMarkers === 'function') {
+    toggleBacktestMarkers(Boolean(toggleBacktestMarkersCheckbox?.checked));
   }
 }
 
@@ -662,6 +675,13 @@ function setupIndicatorToggles() {
   document.getElementById('toggleMACD').addEventListener('change', event => {
     toggleMACD(event.target.checked);
   });
+  if (toggleBacktestMarkersCheckbox) {
+    toggleBacktestMarkersCheckbox.addEventListener('change', event => {
+      if (typeof toggleBacktestMarkers === 'function') {
+        toggleBacktestMarkers(event.target.checked);
+      }
+    });
+  }
 }
 
 function syncIndicatorToggleState() {
@@ -670,6 +690,12 @@ function syncIndicatorToggleState() {
   toggleSupportResistance(document.getElementById('toggleLevels').checked);
   toggleRSI(document.getElementById('toggleRSI').checked);
   toggleMACD(document.getElementById('toggleMACD').checked);
+  if (typeof setBacktestMarkers === 'function') {
+    setBacktestMarkers(state.backtestData);
+  }
+  if (typeof toggleBacktestMarkers === 'function') {
+    toggleBacktestMarkers(Boolean(toggleBacktestMarkersCheckbox?.checked));
+  }
 }
 
 function setupFinancialControls() {

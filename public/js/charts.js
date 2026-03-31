@@ -6,13 +6,41 @@ Chart.defaults.font.family = "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'No
 
 const chartInstances = {};
 
-const PRICE_DATASET_GROUPS = {
-  bollinger: ['볼린저 상단', '볼린저 중심', '볼린저 하단'],
-  movingAverages: ['EMA 20', 'EMA 50', 'SMA 200', '거래량 MA20'],
-  supportResistance: ['지지선 1', '지지선 2', '지지선 3', '저항선 1', '저항선 2', '저항선 3'],
-  rsi: ['RSI', 'RSI 기준선 70', 'RSI 기준선 30'],
-  macd: ['MACD', 'MACD 시그널', 'MACD 히스토그램'],
+const PRICE_LABELS = {
+  close: '종가',
+  ema20: 'EMA 20',
+  ema50: 'EMA 50',
+  sma200: 'SMA 200',
+  bbUpper: '볼린저 상단',
+  bbMiddle: '볼린저 중심',
+  bbLower: '볼린저 하단',
+  volume: '거래량',
+  volumeMA20: '거래량 MA20',
+  rsi: 'RSI',
+  rsiUpper: 'RSI 기준선 70',
+  rsiLower: 'RSI 기준선 30',
+  macd: 'MACD',
+  macdSignal: 'MACD 시그널',
+  macdHistogram: 'MACD 히스토그램',
+  entry: '백테스트 진입',
+  exit: '백테스트 청산',
 };
+
+const PRICE_DATASET_GROUPS = {
+  bollinger: [PRICE_LABELS.bbUpper, PRICE_LABELS.bbMiddle, PRICE_LABELS.bbLower],
+  movingAverages: [PRICE_LABELS.ema20, PRICE_LABELS.ema50, PRICE_LABELS.sma200, PRICE_LABELS.volumeMA20],
+  supportResistance: ['지지선 1', '지지선 2', '지지선 3', '저항선 1', '저항선 2', '저항선 3'],
+  rsi: [PRICE_LABELS.rsi, PRICE_LABELS.rsiUpper, PRICE_LABELS.rsiLower],
+  macd: [PRICE_LABELS.macd, PRICE_LABELS.macdSignal, PRICE_LABELS.macdHistogram],
+  backtestMarkers: [PRICE_LABELS.entry, PRICE_LABELS.exit],
+};
+
+let currentPriceChartMeta = {
+  labels: [],
+  closes: [],
+  currency: 'USD',
+};
+let currentBacktestMarkers = null;
 
 function destroyChart(id) {
   if (chartInstances[id]) {
@@ -49,6 +77,10 @@ function toggleMACD(show) {
   chart.update('none');
 }
 
+function toggleBacktestMarkers(show) {
+  setDatasetVisibility('price', PRICE_DATASET_GROUPS.backtestMarkers, show);
+}
+
 function setDatasetVisibility(chartId, labels, show) {
   const chart = chartInstances[chartId];
   if (!chart) return;
@@ -68,7 +100,6 @@ function buildPriceChart(data) {
   const canvas = document.getElementById('priceChart');
   if (!canvas) return;
 
-  const context = canvas.getContext('2d');
   const labels = data.prices.map(item => item.date);
   const closes = data.prices.map(item => item.close);
   const volumes = data.prices.map(item => item.volume);
@@ -79,6 +110,12 @@ function buildPriceChart(data) {
   const rsiValues = data.indicators.rsi;
   const macd = data.indicators.macd;
 
+  currentPriceChartMeta = {
+    labels,
+    closes,
+    currency: data.meta.currency,
+  };
+
   const histogramColors = macd.histogram.map(value => {
     if (value == null) return 'transparent';
     return value >= 0 ? 'rgba(63, 185, 80, 0.5)' : 'rgba(248, 81, 73, 0.5)';
@@ -87,13 +124,13 @@ function buildPriceChart(data) {
   const supportDatasets = buildLevelDatasets(labels, levels.supports, '지지선', 'rgba(63, 185, 80, 0.28)');
   const resistanceDatasets = buildLevelDatasets(labels, levels.resistances, '저항선', 'rgba(248, 81, 73, 0.28)');
 
-  chartInstances.price = new Chart(context, {
+  chartInstances.price = new Chart(canvas.getContext('2d'), {
     type: 'line',
     data: {
       labels,
       datasets: [
         {
-          label: '종가',
+          label: PRICE_LABELS.close,
           data: closes,
           borderColor: '#58a6ff',
           backgroundColor: 'transparent',
@@ -105,7 +142,7 @@ function buildPriceChart(data) {
           order: 3,
         },
         {
-          label: 'EMA 20',
+          label: PRICE_LABELS.ema20,
           data: movingAverages.ema20,
           borderColor: '#f0883e',
           backgroundColor: 'transparent',
@@ -116,7 +153,7 @@ function buildPriceChart(data) {
           order: 4,
         },
         {
-          label: 'EMA 50',
+          label: PRICE_LABELS.ema50,
           data: movingAverages.ema50,
           borderColor: '#bc8cff',
           backgroundColor: 'transparent',
@@ -127,7 +164,7 @@ function buildPriceChart(data) {
           order: 4,
         },
         {
-          label: 'SMA 200',
+          label: PRICE_LABELS.sma200,
           data: movingAverages.sma200,
           borderColor: '#2ea043',
           backgroundColor: 'transparent',
@@ -139,7 +176,7 @@ function buildPriceChart(data) {
           order: 4,
         },
         {
-          label: '볼린저 상단',
+          label: PRICE_LABELS.bbUpper,
           data: bb.upper,
           borderColor: 'rgba(139, 148, 158, 0.45)',
           backgroundColor: 'transparent',
@@ -151,7 +188,7 @@ function buildPriceChart(data) {
           order: 2,
         },
         {
-          label: '볼린저 중심',
+          label: PRICE_LABELS.bbMiddle,
           data: bb.middle,
           borderColor: 'rgba(139, 148, 158, 0.75)',
           backgroundColor: 'transparent',
@@ -163,7 +200,7 @@ function buildPriceChart(data) {
           order: 2,
         },
         {
-          label: '볼린저 하단',
+          label: PRICE_LABELS.bbLower,
           data: bb.lower,
           borderColor: 'rgba(139, 148, 158, 0.45)',
           backgroundColor: 'transparent',
@@ -176,8 +213,9 @@ function buildPriceChart(data) {
         },
         ...supportDatasets,
         ...resistanceDatasets,
+        ...buildBacktestMarkerDatasets(labels, closes),
         {
-          label: '거래량',
+          label: PRICE_LABELS.volume,
           data: volumes,
           type: 'bar',
           backgroundColor: 'rgba(63, 185, 80, 0.18)',
@@ -187,7 +225,7 @@ function buildPriceChart(data) {
           order: 10,
         },
         {
-          label: '거래량 MA20',
+          label: PRICE_LABELS.volumeMA20,
           data: volumeIndicators.volumeMA20,
           borderColor: '#d29922',
           backgroundColor: 'transparent',
@@ -198,7 +236,7 @@ function buildPriceChart(data) {
           order: 9,
         },
         {
-          label: 'RSI',
+          label: PRICE_LABELS.rsi,
           data: rsiValues,
           type: 'line',
           borderColor: '#bc8cff',
@@ -212,7 +250,7 @@ function buildPriceChart(data) {
           order: 5,
         },
         {
-          label: 'RSI 기준선 70',
+          label: PRICE_LABELS.rsiUpper,
           data: labels.map(() => 70),
           type: 'line',
           borderColor: 'rgba(248, 81, 73, 0.35)',
@@ -226,7 +264,7 @@ function buildPriceChart(data) {
           order: 5,
         },
         {
-          label: 'RSI 기준선 30',
+          label: PRICE_LABELS.rsiLower,
           data: labels.map(() => 30),
           type: 'line',
           borderColor: 'rgba(63, 185, 80, 0.35)',
@@ -240,7 +278,7 @@ function buildPriceChart(data) {
           order: 5,
         },
         {
-          label: 'MACD',
+          label: PRICE_LABELS.macd,
           data: macd.macdLine,
           type: 'line',
           borderColor: '#58a6ff',
@@ -253,7 +291,7 @@ function buildPriceChart(data) {
           order: 6,
         },
         {
-          label: 'MACD 시그널',
+          label: PRICE_LABELS.macdSignal,
           data: macd.signalLine,
           type: 'line',
           borderColor: '#f0883e',
@@ -266,7 +304,7 @@ function buildPriceChart(data) {
           order: 6,
         },
         {
-          label: 'MACD 히스토그램',
+          label: PRICE_LABELS.macdHistogram,
           data: macd.histogram,
           type: 'bar',
           backgroundColor: histogramColors,
@@ -293,7 +331,12 @@ function buildPriceChart(data) {
               const label = item.dataset.label;
               const raw = item.raw;
               if (raw == null) return null;
-              if (label === '거래량' || label === '거래량 MA20') return `${label}: ${formatVolume(raw)}`;
+              if (label === PRICE_LABELS.volume || label === PRICE_LABELS.volumeMA20) {
+                return `${label}: ${formatVolume(raw)}`;
+              }
+              if (label === PRICE_LABELS.entry || label === PRICE_LABELS.exit) {
+                return `${label}: ${formatPrice(raw, data.meta.currency)}`;
+              }
               if (label.startsWith('RSI')) return `${label}: ${Number(raw).toFixed(2)}`;
               if (label.startsWith('MACD')) return `${label}: ${Number(raw).toFixed(4)}`;
               return `${label}: ${formatPrice(raw, data.meta.currency)}`;
@@ -349,6 +392,30 @@ function buildPriceChart(data) {
       },
     },
   });
+}
+
+function setBacktestMarkers(backtest) {
+  currentBacktestMarkers = backtest;
+  const chart = chartInstances.price;
+  if (!chart) return;
+
+  const markerDatasets = buildBacktestMarkerDatasets(currentPriceChartMeta.labels, currentPriceChartMeta.closes);
+  const markerIndexes = [];
+
+  chart.data.datasets.forEach((dataset, index) => {
+    if (PRICE_DATASET_GROUPS.backtestMarkers.includes(dataset.label)) {
+      markerIndexes.push(index);
+    }
+  });
+
+  markerIndexes.sort((a, b) => b - a).forEach(index => {
+    chart.data.datasets.splice(index, 1);
+  });
+
+  const volumeIndex = chart.data.datasets.findIndex(dataset => dataset.label === PRICE_LABELS.volume);
+  const insertAt = volumeIndex === -1 ? chart.data.datasets.length : volumeIndex;
+  chart.data.datasets.splice(insertAt, 0, ...markerDatasets);
+  chart.update('none');
 }
 
 function buildBacktestChart(backtest) {
@@ -439,6 +506,71 @@ function buildLevelDatasets(labels, levels, prefix, color) {
     yAxisID: 'y',
     order: 1,
   }));
+}
+
+function buildBacktestMarkerDatasets(labels, closes) {
+  const markerMap = buildBacktestMarkerMap(labels, closes);
+
+  return [
+    {
+      label: PRICE_LABELS.entry,
+      data: markerMap.entries,
+      type: 'line',
+      borderColor: 'transparent',
+      backgroundColor: '#3fb950',
+      pointBackgroundColor: '#3fb950',
+      pointBorderColor: '#0b1220',
+      pointBorderWidth: 1.5,
+      pointRadius: 6,
+      pointHoverRadius: 7,
+      pointStyle: 'triangle',
+      pointRotation: 0,
+      showLine: false,
+      yAxisID: 'y',
+      hidden: true,
+      order: 0,
+    },
+    {
+      label: PRICE_LABELS.exit,
+      data: markerMap.exits,
+      type: 'line',
+      borderColor: 'transparent',
+      backgroundColor: '#f85149',
+      pointBackgroundColor: '#f85149',
+      pointBorderColor: '#0b1220',
+      pointBorderWidth: 1.5,
+      pointRadius: 6,
+      pointHoverRadius: 7,
+      pointStyle: 'triangle',
+      pointRotation: 180,
+      showLine: false,
+      yAxisID: 'y',
+      hidden: true,
+      order: 0,
+    },
+  ];
+}
+
+function buildBacktestMarkerMap(labels, closes) {
+  const entries = labels.map(() => null);
+  const exits = labels.map(() => null);
+  const results = currentBacktestMarkers?.results || [];
+
+  if (!Array.isArray(results) || results.length === 0) {
+    return { entries, exits };
+  }
+
+  const closeByDate = new Map(labels.map((label, index) => [label, closes[index]]));
+
+  results.forEach(item => {
+    const index = labels.indexOf(item.date);
+    if (index === -1) return;
+    const close = closeByDate.get(item.date);
+    if (item.action === 'ENTER_LONG') entries[index] = close;
+    if (item.action === 'EXIT_LONG') exits[index] = close;
+  });
+
+  return { entries, exits };
 }
 
 function formatPrice(value, currency) {
