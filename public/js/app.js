@@ -141,7 +141,7 @@ function renderAutocomplete(suggestions) {
   }
 
   autocomplete.innerHTML = suggestions.map(item => `
-    <div class="autocomplete-item" data-symbol="${escapeAttr(item.symbol)}">
+    <div class="autocomplete-item" data-symbol="${escapeAttribute(item.symbol)}">
       <span class="autocomplete-symbol">${escapeHtml(item.symbol)}</span>
       <span class="autocomplete-name">${escapeHtml(item.name)}</span>
       <span class="autocomplete-exchange">${escapeHtml(item.exchange || '')}</span>
@@ -504,4 +504,12 @@ function escapeAttr(str) {
   const value = String(str).trim();
   if (!/^https?:\/\//i.test(value)) return '#';
   return value.replace(/"/g, '%22');
+}
+
+function escapeAttribute(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
 }
