@@ -340,8 +340,13 @@ function setupTabs() {
       document.querySelectorAll('.tab-btn').forEach(item => item.classList.remove('active'));
       button.classList.add('active');
       const tab = button.dataset.tab;
-      document.querySelectorAll('.tab-content').forEach(panel => panel.classList.remove('active'));
-      document.getElementById(`tab-${tab}`).classList.add('active');
+      document.querySelectorAll('.tab-content').forEach(panel => {
+        panel.classList.remove('active');
+        panel.classList.add('hidden');
+      });
+      const target = document.getElementById(`tab-${tab}`);
+      target.classList.remove('hidden');
+      target.classList.add('active');
     });
   });
 }
@@ -426,8 +431,13 @@ function setupFinancialControls() {
       document.querySelectorAll('.fin-tab-btn').forEach(item => item.classList.remove('active'));
       button.classList.add('active');
       const tab = button.dataset.fintab;
-      document.querySelectorAll('.fin-content').forEach(panel => panel.classList.remove('active'));
-      document.getElementById(`fin-${tab}`).classList.add('active');
+      document.querySelectorAll('.fin-content').forEach(panel => {
+        panel.classList.remove('active');
+        panel.classList.add('hidden');
+      });
+      const target = document.getElementById(`fin-${tab}`);
+      target.classList.remove('hidden');
+      target.classList.add('active');
     });
   });
 
