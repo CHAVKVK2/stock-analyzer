@@ -175,6 +175,7 @@ async function search(ticker, range) {
   hideMainContent();
   resetSignalPanels();
   resetFearGreed();
+  resetFinancialPanels();
   document.getElementById('newsSection').classList.add('hidden');
 
   pushURL(ticker, range);
@@ -205,6 +206,9 @@ async function search(ticker, range) {
     if (financialResult.status === 'fulfilled' && !financialResult.value.error) {
       state.financialData = financialResult.value;
       renderAllFinancials(financialResult.value, state.currentFinancialPeriod, state.currency);
+    } else {
+      state.financialData = null;
+      renderFinancialFallback();
     }
 
     showLoading(false);
@@ -308,6 +312,26 @@ function resetFearGreed() {
   fearGreedValue.textContent = '-';
   fearGreedMeta.textContent = '';
   fearGreedFill.style.width = '0%';
+}
+
+function resetFinancialPanels() {
+  ['incomeTable', 'balanceTable', 'cashflowTable'].forEach(id => {
+    const element = document.getElementById(id);
+    if (element) element.innerHTML = '';
+  });
+}
+
+function renderFinancialFallback() {
+  ['incomeTable', 'balanceTable', 'cashflowTable'].forEach(id => {
+    const element = document.getElementById(id);
+    if (!element) return;
+    element.innerHTML = `
+      <div class="no-data">
+        재무제표 데이터를 불러오지 못했습니다.<br>
+        다시 검색하거나 잠시 후 다시 시도해 주세요.
+      </div>
+    `;
+  });
 }
 
 function setupTabs() {
