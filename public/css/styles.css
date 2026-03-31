@@ -596,6 +596,12 @@ body {
   color: var(--text-primary);
 }
 
+.historical-signal-note {
+  margin-top: 8px;
+  color: var(--text-secondary);
+  font-size: 0.86rem;
+}
+
 .historical-signal-controls {
   display: flex;
   gap: 8px;

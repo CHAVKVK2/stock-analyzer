@@ -45,10 +45,11 @@ const historicalRequestedDate = document.getElementById('historicalRequestedDate
 const historicalActualDate = document.getElementById('historicalActualDate');
 const historicalSignalLabel = document.getElementById('historicalSignalLabel');
 const historicalScorePair = document.getElementById('historicalScorePair');
+const historicalClose = document.getElementById('historicalClose');
 const historicalRsi = document.getElementById('historicalRsi');
 const historicalMacd = document.getElementById('historicalMacd');
 const historicalMacdSignal = document.getElementById('historicalMacdSignal');
-const historicalBbMiddle = document.getElementById('historicalBbMiddle');
+const historicalBbBands = document.getElementById('historicalBbBands');
 const historicalEmaPair = document.getElementById('historicalEmaPair');
 const historicalAtrAdx = document.getElementById('historicalAtrAdx');
 const historicalVolumeRatio = document.getElementById('historicalVolumeRatio');
@@ -380,6 +381,9 @@ function renderFinancialFallback() {
 
 function setupHistoricalSignal() {
   historicalSignalBtn.addEventListener('click', fetchHistoricalSignal);
+  historicalDateInput.addEventListener('keydown', event => {
+    if (event.key === 'Enter') fetchHistoricalSignal();
+  });
 }
 
 function setupSectionToggles() {
@@ -416,6 +420,7 @@ function prepareHistoricalSignal(data) {
 function resetHistoricalSignal() {
   historicalSignalResult.classList.add('hidden');
   historicalDateInput.value = '';
+  historicalClose.textContent = '-';
   historicalBuyBreakdown.innerHTML = '';
   historicalSellBreakdown.innerHTML = '';
 }
@@ -428,7 +433,7 @@ async function fetchHistoricalSignal() {
 
   try {
     const suffix = suffixSelect.value;
-    const response = await fetch(`/api/stock/signal-date?ticker=${encodeURIComponent(state.currentTicker)}&date=${encodeURIComponent(historicalDateInput.value)}&range=5y&suffix=${suffix}`);
+    const response = await fetch(`/api/stock/historical-snapshot?ticker=${encodeURIComponent(state.currentTicker)}&target_date=${encodeURIComponent(historicalDateInput.value)}&range=5y&suffix=${suffix}`);
     const data = await response.json();
 
     if (data.error) {
@@ -447,6 +452,7 @@ async function fetchHistoricalSignal() {
 
 function renderHistoricalSignal(data) {
   const snapshot = data.snapshot || {};
+  const indicators = data.indicators || {};
   const breakdowns = data.signalScores || {};
 
   historicalSignalResult.classList.remove('hidden');
@@ -455,10 +461,11 @@ function renderHistoricalSignal(data) {
   historicalSignalLabel.textContent = data.signalSummary?.signal || '-';
   historicalSignalLabel.className = `historical-signal-badge signal-${String((data.signalSummary?.signal || 'hold')).toLowerCase()}`;
   historicalScorePair.textContent = `${data.signalScores?.buyScore ?? '-'} / ${data.signalScores?.sellScore ?? '-'}`;
-  historicalRsi.textContent = formatMaybeNumber(snapshot.rsi, 2);
-  historicalMacd.textContent = formatMaybeNumber(snapshot.macd, 4);
-  historicalMacdSignal.textContent = formatMaybeNumber(snapshot.macdSignal, 4);
-  historicalBbMiddle.textContent = formatMaybePrice(snapshot.bollingerMiddle);
+  historicalClose.textContent = formatMaybePrice(data.price?.close ?? snapshot.close);
+  historicalRsi.textContent = formatMaybeNumber(indicators.rsi ?? snapshot.rsi, 2);
+  historicalMacd.textContent = formatMaybeNumber(indicators.macd ?? snapshot.macd, 4);
+  historicalMacdSignal.textContent = formatMaybeNumber(indicators.macdSignal ?? snapshot.macdSignal, 4);
+  historicalBbBands.textContent = formatBollingerBands(indicators, snapshot);
   historicalEmaPair.textContent = `${formatMaybePrice(snapshot.ema20)} / ${formatMaybePrice(snapshot.ema50)}`;
   historicalAtrAdx.textContent = `${formatMaybeNumber(snapshot.atr14, 2)} / ${formatMaybeNumber(snapshot.adx14, 2)}`;
   historicalVolumeRatio.textContent = formatMaybeNumber(snapshot.volumeRatio, 2);
@@ -869,6 +876,13 @@ function formatPercent(value) {
   if (typeof value !== 'number' || !Number.isFinite(value)) return '-';
   const sign = value > 0 ? '+' : '';
   return `${sign}${value.toFixed(2)}%`;
+}
+
+function formatBollingerBands(indicators, snapshot) {
+  const upper = indicators.bollingerUpper ?? snapshot.bollingerUpper;
+  const middle = indicators.bollingerMiddle ?? snapshot.bollingerMiddle;
+  const lower = indicators.bollingerLower ?? snapshot.bollingerLower;
+  return `${formatMaybePrice(upper)} / ${formatMaybePrice(middle)} / ${formatMaybePrice(lower)}`;
 }
 
 function escapeHtml(str) {

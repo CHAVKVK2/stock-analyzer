@@ -6,6 +6,36 @@ import { calculateBacktest, calculateTechnicalAnalysis, calculateTechnicalAnalys
 const router = Router();
 const VALID_RANGES = new Set(['1mo', '3mo', '6mo', '1y', '2y', '5y']);
 
+function buildHistoricalSignalResponse({ ticker, resolvedTicker, datedAnalysis }) {
+  const signal = datedAnalysis.signalSummary.signal === 'NEUTRAL'
+    ? 'HOLD'
+    : datedAnalysis.signalSummary.signal;
+
+  return {
+    ticker,
+    resolvedTicker,
+    requestedDate: datedAnalysis.requestedDate,
+    actualDate: datedAnalysis.actualDate,
+    price: datedAnalysis.price,
+    indicators: {
+      rsi: datedAnalysis.snapshot.rsi,
+      macd: datedAnalysis.snapshot.macd,
+      macdSignal: datedAnalysis.snapshot.macdSignal,
+      macdHistogram: datedAnalysis.snapshot.macdHistogram,
+      bollingerUpper: datedAnalysis.snapshot.bollingerUpper,
+      bollingerMiddle: datedAnalysis.snapshot.bollingerMiddle,
+      bollingerLower: datedAnalysis.snapshot.bollingerLower,
+    },
+    marketState: datedAnalysis.marketState,
+    signalScores: datedAnalysis.signalScores,
+    signalSummary: {
+      ...datedAnalysis.signalSummary,
+      signal,
+    },
+    snapshot: datedAnalysis.snapshot,
+  };
+}
+
 // GET /api/stock/technical?ticker=AAPL&range=6mo&suffix=auto
 router.get('/technical', async (req, res, next) => {
   try {
@@ -57,24 +87,34 @@ router.get('/signal-date', async (req, res, next) => {
     const resolvedTicker = await resolveTickerAsync(ticker, suffix);
     const priceData = await getPriceHistory(resolvedTicker, range);
     const datedAnalysis = calculateTechnicalAnalysisForDate(priceData.prices, date);
-    const signal = datedAnalysis.signalSummary.signal === 'NEUTRAL'
-      ? 'HOLD'
-      : datedAnalysis.signalSummary.signal;
 
-    res.json({
+    res.json(buildHistoricalSignalResponse({
       ticker,
       resolvedTicker,
-      requestedDate: datedAnalysis.requestedDate,
-      actualDate: datedAnalysis.actualDate,
-      price: datedAnalysis.price,
-      marketState: datedAnalysis.marketState,
-      signalScores: datedAnalysis.signalScores,
-      signalSummary: {
-        ...datedAnalysis.signalSummary,
-        signal,
-      },
-      snapshot: datedAnalysis.snapshot,
-    });
+      datedAnalysis,
+    }));
+  } catch (err) {
+    next(err);
+  }
+});
+
+// GET /api/stock/historical-snapshot?ticker=AAPL&target_date=2025-01-22&range=2y&suffix=auto
+router.get('/historical-snapshot', async (req, res, next) => {
+  try {
+    const { ticker, target_date: targetDate, range = '2y', suffix = 'auto' } = req.query;
+    if (!ticker) return res.status(400).json({ error: 'ticker 파라미터가 필요합니다.' });
+    if (!targetDate) return res.status(400).json({ error: 'target_date 파라미터가 필요합니다.' });
+    if (!VALID_RANGES.has(range)) return res.status(400).json({ error: `유효하지 않은 range: ${range}` });
+
+    const resolvedTicker = await resolveTickerAsync(ticker, suffix);
+    const priceData = await getPriceHistory(resolvedTicker, range);
+    const datedAnalysis = calculateTechnicalAnalysisForDate(priceData.prices, targetDate);
+
+    res.json(buildHistoricalSignalResponse({
+      ticker,
+      resolvedTicker,
+      datedAnalysis,
+    }));
   } catch (err) {
     next(err);
   }

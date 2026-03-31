@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Stock Analyzer</title>
-  <link rel="stylesheet" href="/css/styles.css?v=20260331f" />
+  <link rel="stylesheet" href="/css/styles.css?v=20260331g" />
 </head>
 <body>
   <header class="header">
@@ -194,7 +194,8 @@
           <div class="historical-signal-header">
             <div>
               <div class="historical-signal-eyebrow">Point-in-Time</div>
-              <h3 class="historical-signal-title">과거 단일 날짜 신호 조회</h3>
+              <h3 class="historical-signal-title">과거 특정 날짜 신호 조회</h3>
+              <p class="historical-signal-note">현재 검색된 종목에 대해 선택한 날짜까지의 데이터만 사용해 신호를 계산합니다.</p>
             </div>
             <div class="historical-signal-controls">
               <input type="date" id="historicalDateInput" class="historical-date-input" />
@@ -223,10 +224,11 @@
             </div>
 
             <div class="historical-indicator-grid">
+              <div class="historical-indicator-item"><span>종가</span><strong id="historicalClose"></strong></div>
               <div class="historical-indicator-item"><span>RSI</span><strong id="historicalRsi"></strong></div>
               <div class="historical-indicator-item"><span>MACD</span><strong id="historicalMacd"></strong></div>
               <div class="historical-indicator-item"><span>MACD 시그널</span><strong id="historicalMacdSignal"></strong></div>
-              <div class="historical-indicator-item"><span>볼린저 중심선</span><strong id="historicalBbMiddle"></strong></div>
+              <div class="historical-indicator-item"><span>Bollinger Bands</span><strong id="historicalBbBands"></strong></div>
               <div class="historical-indicator-item"><span>EMA20 / EMA50</span><strong id="historicalEmaPair"></strong></div>
               <div class="historical-indicator-item"><span>ATR14 / ADX14</span><strong id="historicalAtrAdx"></strong></div>
               <div class="historical-indicator-item"><span>거래량 비율</span><strong id="historicalVolumeRatio"></strong></div>
@@ -446,6 +448,6 @@
   <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
   <script src="/js/charts.js?v=20260331e"></script>
   <script src="/js/financials.js?v=20260331d"></script>
-  <script src="/js/app.js?v=20260331f"></script>
+  <script src="/js/app.js?v=20260331g"></script>
 </body>
 </html>
