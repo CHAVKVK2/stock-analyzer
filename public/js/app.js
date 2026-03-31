@@ -85,26 +85,26 @@ async function triggerSearch() {
   const raw = tickerInput.value.trim();
   if (!raw) return;
 
-  if (!autocomplete.classList.contains('hidden')) {
-    const firstItem = autocomplete.querySelector('.autocomplete-item');
-    if (firstItem) {
-      const symbol = firstItem.dataset.symbol;
-      tickerInput.value = symbol;
-      autocomplete.classList.add('hidden');
-      if (symbol.includes('.')) suffixSelect.value = 'none';
-      state.currentRange = getActiveRange();
-      search(symbol, state.currentRange);
-      return;
-    }
+    if (!autocomplete.classList.contains('hidden')) {
+      const firstItem = autocomplete.querySelector('.autocomplete-item');
+      if (firstItem) {
+        const symbol = firstItem.dataset.symbol;
+        tickerInput.value = symbol;
+        autocomplete.classList.add('hidden');
+        suffixSelect.value = 'none';
+        state.currentRange = getActiveRange();
+        search(symbol, state.currentRange);
+        return;
+      }
   }
 
   autocomplete.classList.add('hidden');
   state.currentRange = getActiveRange();
 
   if (/[a-zA-Z\u3131-\u318E\uAC00-\uD7A3\s]/.test(raw)) {
-    const { symbol, hasDot } = await resolveToTicker(raw);
+    const { symbol, hasDot, resolved } = await resolveToTicker(raw);
     tickerInput.value = symbol;
-    if (hasDot) suffixSelect.value = 'none';
+    if (resolved || hasDot) suffixSelect.value = 'none';
     search(symbol, state.currentRange);
     return;
   }
@@ -113,15 +113,15 @@ async function triggerSearch() {
 }
 
 async function resolveToTicker(query) {
-  try {
+    try {
     const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
     const data = await response.json();
     const top = (data.suggestions || [])[0];
-    if (top) return { symbol: top.symbol, hasDot: top.symbol.includes('.') };
+    if (top) return { symbol: top.symbol, hasDot: top.symbol.includes('.'), resolved: true };
   } catch (_) {
     // Fall through to raw query.
   }
-  return { symbol: query, hasDot: query.includes('.') };
+  return { symbol: query, hasDot: query.includes('.'), resolved: false };
 }
 
 async function fetchAutocomplete(query) {
@@ -153,7 +153,7 @@ function renderAutocomplete(suggestions) {
       const symbol = item.dataset.symbol;
       tickerInput.value = symbol;
       autocomplete.classList.add('hidden');
-      if (symbol.includes('.')) suffixSelect.value = 'none';
+      suffixSelect.value = 'none';
       triggerSearch();
     });
   });
