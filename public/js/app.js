@@ -26,6 +26,11 @@ const signalRisks = document.getElementById('signalRisks');
 const signalSummaryBody = document.getElementById('signalSummaryBody');
 const scoreCards = document.getElementById('scoreCards');
 const marketBadges = document.getElementById('marketBadges');
+const fearGreedSection = document.getElementById('fearGreedSection');
+const fearGreedLabel = document.getElementById('fearGreedLabel');
+const fearGreedValue = document.getElementById('fearGreedValue');
+const fearGreedMeta = document.getElementById('fearGreedMeta');
+const fearGreedFill = document.getElementById('fearGreedFill');
 
 document.addEventListener('DOMContentLoaded', () => {
   setupSearch();
@@ -169,6 +174,7 @@ async function search(ticker, range) {
   hideError();
   hideMainContent();
   resetSignalPanels();
+  resetFearGreed();
   document.getElementById('newsSection').classList.add('hidden');
 
   pushURL(ticker, range);
@@ -203,6 +209,7 @@ async function search(ticker, range) {
 
     showLoading(false);
     showMainContent();
+    fetchAndRenderFearGreed();
     fetchAndRenderNews(technicalResult.value.resolvedTicker);
   } catch (_) {
     showError('서버 연결에 실패했습니다. 다시 시도해 주세요.');
@@ -293,6 +300,14 @@ function resetSignalPanels() {
   signalRisks.innerHTML = '';
   scoreCards.innerHTML = '';
   marketBadges.innerHTML = '';
+}
+
+function resetFearGreed() {
+  fearGreedSection.classList.add('hidden');
+  fearGreedLabel.textContent = '';
+  fearGreedValue.textContent = '-';
+  fearGreedMeta.textContent = '';
+  fearGreedFill.style.width = '0%';
 }
 
 function setupTabs() {
@@ -422,6 +437,58 @@ async function fetchAndRenderNews(ticker) {
   } finally {
     spinner.classList.add('hidden');
   }
+}
+
+async function fetchAndRenderFearGreed() {
+  try {
+    const response = await fetch('/api/market/fear-greed');
+    const data = await response.json();
+    renderFearGreed(data);
+  } catch (_) {
+    resetFearGreed();
+  }
+}
+
+function renderFearGreed(data) {
+  const value = Number(data.value);
+  if (!Number.isFinite(value)) {
+    resetFearGreed();
+    return;
+  }
+
+  fearGreedSection.classList.remove('hidden');
+  fearGreedValue.textContent = String(value);
+  fearGreedLabel.textContent = formatFearGreedLabel(data.classification);
+  fearGreedLabel.className = `fear-greed-label ${fearGreedToneClass(value)}`;
+  fearGreedMeta.textContent = buildFearGreedMeta(data);
+  fearGreedFill.style.width = `${Math.max(0, Math.min(100, value))}%`;
+  fearGreedFill.className = `fear-greed-scale-fill ${fearGreedToneClass(value)}`;
+}
+
+function buildFearGreedMeta(data) {
+  const source = data.source ? `출처: ${data.source}` : '';
+  const nextUpdate = Number.isFinite(data.timeUntilUpdate)
+    ? `업데이트까지 약 ${Math.max(1, Math.round(data.timeUntilUpdate / 3600))}시간`
+    : '';
+  return [source, nextUpdate].filter(Boolean).join(' · ');
+}
+
+function fearGreedToneClass(value) {
+  if (value <= 25) return 'tone-fear';
+  if (value >= 75) return 'tone-greed';
+  return 'tone-neutral';
+}
+
+function formatFearGreedLabel(classification) {
+  const labels = {
+    'Extreme Fear': '극도의 공포',
+    Fear: '공포',
+    Neutral: '중립',
+    Greed: '탐욕',
+    'Extreme Greed': '극도의 탐욕',
+  };
+
+  return labels[classification] || classification || '중립';
 }
 
 function renderNews(articles) {
