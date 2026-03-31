@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { resolveTicker } from '../services/tickerResolver.js';
 import { getPriceHistory, getFinancials } from '../services/yahooFinanceService.js';
-import { calculateIndicators } from '../services/technicalService.js';
+import { calculateTechnicalAnalysis } from '../services/technicalService.js';
 
 const router = Router();
 const VALID_RANGES = new Set(['1mo', '3mo', '6mo', '1y', '2y']);
@@ -15,9 +15,18 @@ router.get('/technical', async (req, res, next) => {
 
     const resolvedTicker = resolveTicker(ticker, suffix);
     const priceData = await getPriceHistory(resolvedTicker, range);
-    const indicators = calculateIndicators(priceData.prices);
+    const analysis = calculateTechnicalAnalysis(priceData.prices);
 
-    res.json({ ticker, resolvedTicker, meta: priceData.meta, prices: priceData.prices, indicators });
+    res.json({
+      ticker,
+      resolvedTicker,
+      meta: priceData.meta,
+      prices: priceData.prices,
+      indicators: analysis.indicators,
+      marketState: analysis.marketState,
+      signalScores: analysis.signalScores,
+      signalSummary: analysis.signalSummary,
+    });
   } catch (err) {
     next(err);
   }
