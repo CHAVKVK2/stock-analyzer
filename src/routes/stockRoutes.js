@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { resolveTicker } from '../services/tickerResolver.js';
+import { resolveTickerAsync } from '../services/tickerResolver.js';
 import { getPriceHistory, getFinancials } from '../services/yahooFinanceService.js';
 import { calculateTechnicalAnalysis } from '../services/technicalService.js';
 
@@ -13,7 +13,7 @@ router.get('/technical', async (req, res, next) => {
     if (!ticker) return res.status(400).json({ error: '종목 코드(ticker) 파라미터가 필요합니다.' });
     if (!VALID_RANGES.has(range)) return res.status(400).json({ error: `유효하지 않은 range: ${range}` });
 
-    const resolvedTicker = resolveTicker(ticker, suffix);
+    const resolvedTicker = await resolveTickerAsync(ticker, suffix);
     const priceData = await getPriceHistory(resolvedTicker, range);
     const analysis = calculateTechnicalAnalysis(priceData.prices);
 
@@ -38,7 +38,7 @@ router.get('/financials', async (req, res, next) => {
     const { ticker, suffix = 'auto' } = req.query;
     if (!ticker) return res.status(400).json({ error: '종목 코드(ticker) 파라미터가 필요합니다.' });
 
-    const resolvedTicker = resolveTicker(ticker, suffix);
+    const resolvedTicker = await resolveTickerAsync(ticker, suffix);
     const data = await getFinancials(resolvedTicker);
     res.json(data);
   } catch (err) {

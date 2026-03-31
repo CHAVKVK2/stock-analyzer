@@ -1,4 +1,5 @@
 import { resolveLocalAlias } from './stockAliasCatalog.js';
+import { resolveKrxStock } from './krxService.js';
 
 /**
  * Normalize a raw stock input into a Yahoo Finance symbol.
@@ -28,4 +29,25 @@ export function resolveTicker(rawInput, suffixOverride) {
   }
 
   return input.toUpperCase();
+}
+
+export async function resolveTickerAsync(rawInput, suffixOverride) {
+  const resolved = resolveTicker(rawInput, suffixOverride);
+
+  if (!rawInput || suffixOverride === 'none' || suffixOverride === '.KS' || suffixOverride === '.KQ') {
+    return resolved;
+  }
+
+  const input = rawInput.trim();
+  const localAlias = resolveLocalAlias(input);
+  if (localAlias) return localAlias.symbol;
+
+  if (input.includes('.') || /^\d+$/.test(input)) {
+    return resolved;
+  }
+
+  const krxMatch = await resolveKrxStock(input).catch(() => null);
+  if (krxMatch) return krxMatch.symbol;
+
+  return resolved;
 }

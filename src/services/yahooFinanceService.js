@@ -1,4 +1,5 @@
 import YahooFinance from 'yahoo-finance2';
+import { searchKrxStocks } from './krxService.js';
 import { resolveLocalAlias, searchLocalAliases } from './stockAliasCatalog.js';
 
 const yahooFinance = new YahooFinance({ suppressNotices: ['yahooSurvey'] });
@@ -99,7 +100,10 @@ export async function getFinancials(ticker) {
 export async function searchTickers(query) {
   if (!query) return [];
 
-  const localSuggestions = searchLocalAliases(query);
+  const [localSuggestions, krxSuggestions] = await Promise.all([
+    Promise.resolve(searchLocalAliases(query)),
+    searchKrxStocks(query, 10).catch(() => []),
+  ]);
 
   try {
     const result = await yahooFinance.search(query, { quotesCount: 8, newsCount: 0 });
@@ -112,11 +116,11 @@ export async function searchTickers(query) {
         type: q.quoteType || '',
       }));
 
-    return dedupeSuggestions([...localSuggestions, ...remoteSuggestions]);
+    return dedupeSuggestions([...localSuggestions, ...krxSuggestions, ...remoteSuggestions]);
   } catch {
     const localMatch = resolveLocalAlias(query);
-    if (!localMatch) return [];
-    return [localMatch];
+    if (localMatch) return [localMatch];
+    return krxSuggestions;
   }
 }
 
