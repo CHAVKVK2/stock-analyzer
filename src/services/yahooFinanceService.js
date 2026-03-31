@@ -1,37 +1,10 @@
 import YahooFinance from 'yahoo-finance2';
+import { resolveLocalAlias, searchLocalAliases } from './stockAliasCatalog.js';
 
 const yahooFinance = new YahooFinance({ suppressNotices: ['yahooSurvey'] });
 
 const cache = new Map();
 const CACHE_TTL = 5 * 60 * 1000;
-const LOCAL_TICKER_ALIASES = new Map([
-  ['삼성전자', { symbol: '005930.KS', name: 'Samsung Electronics Co., Ltd.' }],
-  ['애플', { symbol: 'AAPL', name: 'Apple Inc.' }],
-  ['apple', { symbol: 'AAPL', name: 'Apple Inc.' }],
-  ['tesla', { symbol: 'TSLA', name: 'Tesla, Inc.' }],
-  ['테슬라', { symbol: 'TSLA', name: 'Tesla, Inc.' }],
-  ['nvidia', { symbol: 'NVDA', name: 'NVIDIA Corporation' }],
-  ['엔비디아', { symbol: 'NVDA', name: 'NVIDIA Corporation' }],
-  ['microsoft', { symbol: 'MSFT', name: 'Microsoft Corporation' }],
-  ['마이크로소프트', { symbol: 'MSFT', name: 'Microsoft Corporation' }],
-  ['google', { symbol: 'GOOGL', name: 'Alphabet Inc. Class A' }],
-  ['alphabet', { symbol: 'GOOGL', name: 'Alphabet Inc. Class A' }],
-  ['구글', { symbol: 'GOOGL', name: 'Alphabet Inc. Class A' }],
-  ['amazon', { symbol: 'AMZN', name: 'Amazon.com, Inc.' }],
-  ['아마존', { symbol: 'AMZN', name: 'Amazon.com, Inc.' }],
-  ['meta', { symbol: 'META', name: 'Meta Platforms, Inc.' }],
-  ['메타', { symbol: 'META', name: 'Meta Platforms, Inc.' }],
-  ['netflix', { symbol: 'NFLX', name: 'Netflix, Inc.' }],
-  ['넷플릭스', { symbol: 'NFLX', name: 'Netflix, Inc.' }],
-  ['현대차', { symbol: '005380.KS', name: 'Hyundai Motor Company' }],
-  ['sk하이닉스', { symbol: '000660.KS', name: 'SK Hynix Inc.' }],
-  ['네이버', { symbol: '035420.KS', name: 'NAVER Corporation' }],
-  ['카카오', { symbol: '035720.KQ', name: 'Kakao Corp.' }],
-  ['lg에너지솔루션', { symbol: '373220.KS', name: 'LG Energy Solution, Ltd.' }],
-  ['셀트리온', { symbol: '068270.KS', name: 'Celltrion, Inc.' }],
-  ['posco', { symbol: '005490.KS', name: 'POSCO Holdings Inc.' }],
-  ['포스코', { symbol: '005490.KS', name: 'POSCO Holdings Inc.' }],
-]);
 
 function getCached(key) {
   const entry = cache.get(key);
@@ -125,10 +98,10 @@ export async function getFinancials(ticker) {
 
 export async function searchTickers(query) {
   if (!query) return [];
-  try {
-    const normalized = normalizeLookupKey(query);
-    const localMatch = LOCAL_TICKER_ALIASES.get(normalized);
 
+  const localSuggestions = searchLocalAliases(query);
+
+  try {
     const result = await yahooFinance.search(query, { quotesCount: 8, newsCount: 0 });
     const remoteSuggestions = (result.quotes || [])
       .filter(q => q.symbol)
@@ -139,25 +112,11 @@ export async function searchTickers(query) {
         type: q.quoteType || '',
       }));
 
-    const localSuggestions = localMatch
-      ? [{
-        symbol: localMatch.symbol,
-        name: localMatch.name,
-        exchange: localMatch.symbol.includes('.KS') ? 'KSC' : '',
-        type: 'EQUITY',
-      }]
-      : [];
-
     return dedupeSuggestions([...localSuggestions, ...remoteSuggestions]);
   } catch {
-    const localMatch = LOCAL_TICKER_ALIASES.get(normalizeLookupKey(query));
+    const localMatch = resolveLocalAlias(query);
     if (!localMatch) return [];
-    return [{
-      symbol: localMatch.symbol,
-      name: localMatch.name,
-      exchange: localMatch.symbol.includes('.KS') ? 'KSC' : '',
-      type: 'EQUITY',
-    }];
+    return [localMatch];
   }
 }
 
@@ -245,13 +204,6 @@ function formatStatementDate(date, period) {
 function rnd(n) {
   if (n == null) return null;
   return Math.round(n * 100) / 100;
-}
-
-function normalizeLookupKey(value) {
-  return String(value)
-    .trim()
-    .toLowerCase()
-    .replace(/[\s._,'"()\-\[\]{}+/]+/g, '');
 }
 
 function dedupeSuggestions(items) {
