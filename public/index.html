@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Stock Analyzer</title>
-  <link rel="stylesheet" href="/css/styles.css?v=20260331c" />
+  <link rel="stylesheet" href="/css/styles.css?v=20260331d" />
 </head>
 <body>
   <header class="header">
@@ -115,6 +115,51 @@
             <div class="signal-panel">
               <div class="signal-panel-title">리스크 체크</div>
               <ul id="signalRisks" class="signal-list"></ul>
+            </div>
+          </div>
+        </section>
+
+        <section id="historicalSignalSection" class="historical-signal-card hidden">
+          <div class="historical-signal-header">
+            <div>
+              <div class="historical-signal-eyebrow">과거 신호 조회</div>
+              <h3 class="historical-signal-title">특정 날짜 신호 엔진</h3>
+            </div>
+            <div class="historical-signal-controls">
+              <input type="date" id="historicalDateInput" class="historical-date-input" />
+              <button id="historicalSignalBtn" class="search-btn historical-btn">조회</button>
+            </div>
+          </div>
+
+          <div id="historicalSignalResult" class="historical-signal-result hidden">
+            <div class="historical-signal-summary">
+              <div class="historical-signal-summary-item">
+                <span class="historical-label">요청 날짜</span>
+                <strong id="historicalRequestedDate"></strong>
+              </div>
+              <div class="historical-signal-summary-item">
+                <span class="historical-label">실제 계산 날짜</span>
+                <strong id="historicalActualDate"></strong>
+              </div>
+              <div class="historical-signal-summary-item">
+                <span class="historical-label">최종 신호</span>
+                <strong id="historicalSignalLabel"></strong>
+              </div>
+              <div class="historical-signal-summary-item">
+                <span class="historical-label">매수 / 매도 점수</span>
+                <strong id="historicalScorePair"></strong>
+              </div>
+            </div>
+
+            <div class="historical-indicator-grid">
+              <div class="historical-indicator-item"><span>RSI</span><strong id="historicalRsi"></strong></div>
+              <div class="historical-indicator-item"><span>MACD</span><strong id="historicalMacd"></strong></div>
+              <div class="historical-indicator-item"><span>MACD 시그널</span><strong id="historicalMacdSignal"></strong></div>
+              <div class="historical-indicator-item"><span>볼린저 중심</span><strong id="historicalBbMiddle"></strong></div>
+              <div class="historical-indicator-item"><span>EMA20 / EMA50</span><strong id="historicalEmaPair"></strong></div>
+              <div class="historical-indicator-item"><span>ATR14 / ADX14</span><strong id="historicalAtrAdx"></strong></div>
+              <div class="historical-indicator-item"><span>거래량 비율</span><strong id="historicalVolumeRatio"></strong></div>
+              <div class="historical-indicator-item"><span>지지 / 저항</span><strong id="historicalLevels"></strong></div>
             </div>
           </div>
         </section>
@@ -240,8 +285,8 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
 
-  <script src="/js/charts.js?v=20260331c"></script>
-  <script src="/js/financials.js?v=20260331c"></script>
-  <script src="/js/app.js?v=20260331c"></script>
+  <script src="/js/charts.js?v=20260331d"></script>
+  <script src="/js/financials.js?v=20260331d"></script>
+  <script src="/js/app.js?v=20260331d"></script>
 </body>
 </html>

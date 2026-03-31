@@ -31,6 +31,22 @@ const fearGreedLabel = document.getElementById('fearGreedLabel');
 const fearGreedValue = document.getElementById('fearGreedValue');
 const fearGreedMeta = document.getElementById('fearGreedMeta');
 const fearGreedFill = document.getElementById('fearGreedFill');
+const historicalSignalSection = document.getElementById('historicalSignalSection');
+const historicalDateInput = document.getElementById('historicalDateInput');
+const historicalSignalBtn = document.getElementById('historicalSignalBtn');
+const historicalSignalResult = document.getElementById('historicalSignalResult');
+const historicalRequestedDate = document.getElementById('historicalRequestedDate');
+const historicalActualDate = document.getElementById('historicalActualDate');
+const historicalSignalLabel = document.getElementById('historicalSignalLabel');
+const historicalScorePair = document.getElementById('historicalScorePair');
+const historicalRsi = document.getElementById('historicalRsi');
+const historicalMacd = document.getElementById('historicalMacd');
+const historicalMacdSignal = document.getElementById('historicalMacdSignal');
+const historicalBbMiddle = document.getElementById('historicalBbMiddle');
+const historicalEmaPair = document.getElementById('historicalEmaPair');
+const historicalAtrAdx = document.getElementById('historicalAtrAdx');
+const historicalVolumeRatio = document.getElementById('historicalVolumeRatio');
+const historicalLevels = document.getElementById('historicalLevels');
 
 document.addEventListener('DOMContentLoaded', () => {
   setupSearch();
@@ -38,6 +54,7 @@ document.addEventListener('DOMContentLoaded', () => {
   setupRangeButtons();
   setupFinancialControls();
   setupIndicatorToggles();
+  setupHistoricalSignal();
   loadFromURL();
 });
 
@@ -176,6 +193,7 @@ async function search(ticker, range) {
   resetSignalPanels();
   resetFearGreed();
   resetFinancialPanels();
+  resetHistoricalSignal();
   document.getElementById('newsSection').classList.add('hidden');
 
   pushURL(ticker, range);
@@ -200,6 +218,7 @@ async function search(ticker, range) {
     state.currency = technicalResult.value.meta.currency || 'USD';
     renderStockHeader(technicalResult.value);
     renderSignalOverview(technicalResult.value);
+    prepareHistoricalSignal(technicalResult.value);
     buildPriceChart(technicalResult.value);
     syncIndicatorToggleState();
 
@@ -334,6 +353,80 @@ function renderFinancialFallback() {
   });
 }
 
+function setupHistoricalSignal() {
+  historicalSignalBtn.addEventListener('click', () => {
+    fetchHistoricalSignal();
+  });
+}
+
+function prepareHistoricalSignal(data) {
+  const prices = data.prices || [];
+  if (!prices.length) {
+    resetHistoricalSignal();
+    return;
+  }
+
+  historicalSignalSection.classList.remove('hidden');
+  const firstDate = prices[0].date;
+  const lastDate = prices[prices.length - 1].date;
+  historicalDateInput.min = firstDate;
+  historicalDateInput.max = lastDate;
+
+  if (!historicalDateInput.value || historicalDateInput.value < firstDate || historicalDateInput.value > lastDate) {
+    historicalDateInput.value = lastDate;
+  }
+}
+
+function resetHistoricalSignal() {
+  historicalSignalSection.classList.add('hidden');
+  historicalSignalResult.classList.add('hidden');
+  historicalDateInput.value = '';
+}
+
+async function fetchHistoricalSignal() {
+  if (!state.currentTicker || !historicalDateInput.value) return;
+
+  historicalSignalBtn.disabled = true;
+  historicalSignalBtn.textContent = '불러오는 중...';
+
+  try {
+    const suffix = suffixSelect.value;
+    const response = await fetch(`/api/stock/signal-date?ticker=${encodeURIComponent(state.currentTicker)}&date=${encodeURIComponent(historicalDateInput.value)}&range=2y&suffix=${suffix}`);
+    const data = await response.json();
+
+    if (data.error) {
+      showError(data.error);
+      return;
+    }
+
+    renderHistoricalSignal(data);
+  } catch (_) {
+    showError('과거 날짜 신호를 불러오지 못했습니다.');
+  } finally {
+    historicalSignalBtn.disabled = false;
+    historicalSignalBtn.textContent = '조회';
+  }
+}
+
+function renderHistoricalSignal(data) {
+  const snapshot = data.snapshot || {};
+
+  historicalSignalResult.classList.remove('hidden');
+  historicalRequestedDate.textContent = data.requestedDate || '-';
+  historicalActualDate.textContent = data.actualDate || '-';
+  historicalSignalLabel.textContent = data.signalSummary?.signal || '-';
+  historicalSignalLabel.className = `historical-signal-badge signal-${String((data.signalSummary?.signal || 'hold')).toLowerCase()}`;
+  historicalScorePair.textContent = `${data.signalScores?.buyScore ?? '-'} / ${data.signalScores?.sellScore ?? '-'}`;
+  historicalRsi.textContent = formatMaybeNumber(snapshot.rsi, 2);
+  historicalMacd.textContent = formatMaybeNumber(snapshot.macd, 4);
+  historicalMacdSignal.textContent = formatMaybeNumber(snapshot.macdSignal, 4);
+  historicalBbMiddle.textContent = formatMaybePrice(snapshot.bollingerMiddle);
+  historicalEmaPair.textContent = `${formatMaybePrice(snapshot.ema20)} / ${formatMaybePrice(snapshot.ema50)}`;
+  historicalAtrAdx.textContent = `${formatMaybeNumber(snapshot.atr14, 2)} / ${formatMaybeNumber(snapshot.adx14, 2)}`;
+  historicalVolumeRatio.textContent = formatMaybeNumber(snapshot.volumeRatio, 2);
+  historicalLevels.textContent = `${formatMaybePrice(snapshot.nearestSupport)} / ${formatMaybePrice(snapshot.nearestResistance)}`;
+}
+
 function setupTabs() {
   document.querySelectorAll('.tab-btn').forEach(button => {
     button.addEventListener('click', () => {
@@ -388,6 +481,7 @@ async function reloadTechnical() {
     state.technicalData = data;
     renderStockHeader(data);
     renderSignalOverview(data);
+    prepareHistoricalSignal(data);
     buildPriceChart(data);
     syncIndicatorToggleState();
     pushURL(state.currentTicker, state.currentRange);
@@ -619,6 +713,14 @@ function formatLocalizedValue(value) {
 
   if (labels[normalized]) return labels[normalized];
   return formatSentenceCase(String(value).replace(/_/g, ' '));
+}
+
+function formatMaybeNumber(value, digits = 2) {
+  return typeof value === 'number' && Number.isFinite(value) ? value.toFixed(digits) : '-';
+}
+
+function formatMaybePrice(value) {
+  return typeof value === 'number' && Number.isFinite(value) ? formatPrice(value, state.currency) : '-';
 }
 
 function escapeHtml(str) {

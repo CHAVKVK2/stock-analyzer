@@ -1,10 +1,10 @@
 import { Router } from 'express';
 import { resolveTickerAsync } from '../services/tickerResolver.js';
 import { getPriceHistory, getFinancials } from '../services/yahooFinanceService.js';
-import { calculateTechnicalAnalysis } from '../services/technicalService.js';
+import { calculateTechnicalAnalysis, calculateTechnicalAnalysisForDate } from '../services/technicalService.js';
 
 const router = Router();
-const VALID_RANGES = new Set(['1mo', '3mo', '6mo', '1y', '2y']);
+const VALID_RANGES = new Set(['1mo', '3mo', '6mo', '1y', '2y', '5y']);
 
 // GET /api/stock/technical?ticker=AAPL&range=6mo&suffix=auto
 router.get('/technical', async (req, res, next) => {
@@ -41,6 +41,40 @@ router.get('/financials', async (req, res, next) => {
     const resolvedTicker = await resolveTickerAsync(ticker, suffix);
     const data = await getFinancials(resolvedTicker);
     res.json(data);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// GET /api/stock/signal-date?ticker=AAPL&date=2025-01-22&range=2y&suffix=auto
+router.get('/signal-date', async (req, res, next) => {
+  try {
+    const { ticker, date, range = '2y', suffix = 'auto' } = req.query;
+    if (!ticker) return res.status(400).json({ error: '종목 코드(ticker) 파라미터가 필요합니다.' });
+    if (!date) return res.status(400).json({ error: '날짜(date) 파라미터가 필요합니다.' });
+    if (!VALID_RANGES.has(range)) return res.status(400).json({ error: `유효하지 않은 range: ${range}` });
+
+    const resolvedTicker = await resolveTickerAsync(ticker, suffix);
+    const priceData = await getPriceHistory(resolvedTicker, range);
+    const datedAnalysis = calculateTechnicalAnalysisForDate(priceData.prices, date);
+    const signal = datedAnalysis.signalSummary.signal === 'NEUTRAL'
+      ? 'HOLD'
+      : datedAnalysis.signalSummary.signal;
+
+    res.json({
+      ticker,
+      resolvedTicker,
+      requestedDate: datedAnalysis.requestedDate,
+      actualDate: datedAnalysis.actualDate,
+      price: datedAnalysis.price,
+      marketState: datedAnalysis.marketState,
+      signalScores: datedAnalysis.signalScores,
+      signalSummary: {
+        ...datedAnalysis.signalSummary,
+        signal,
+      },
+      snapshot: datedAnalysis.snapshot,
+    });
   } catch (err) {
     next(err);
   }

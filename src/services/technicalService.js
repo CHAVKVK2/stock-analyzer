@@ -14,6 +14,36 @@ export function calculateTechnicalAnalysis(prices) {
   };
 }
 
+export function calculateTechnicalAnalysisForDate(prices, requestedDate) {
+  if (!Array.isArray(prices) || prices.length === 0) {
+    throw new Error('가격 데이터가 없습니다.');
+  }
+
+  const targetIndex = findTargetIndexOnOrBefore(prices, requestedDate);
+  if (targetIndex === -1) {
+    throw new Error('선택한 날짜 이전의 가격 데이터가 없습니다.');
+  }
+
+  const slicedPrices = prices.slice(0, targetIndex + 1);
+  const analysis = calculateTechnicalAnalysis(slicedPrices);
+  const snapshot = buildIndicatorSnapshot(slicedPrices, analysis.indicators);
+
+  return {
+    requestedDate,
+    actualDate: slicedPrices.at(-1)?.date ?? null,
+    analysisDateIndex: targetIndex,
+    price: {
+      open: slicedPrices.at(-1)?.open ?? null,
+      high: slicedPrices.at(-1)?.high ?? null,
+      low: slicedPrices.at(-1)?.low ?? null,
+      close: slicedPrices.at(-1)?.close ?? null,
+      volume: slicedPrices.at(-1)?.volume ?? null,
+    },
+    snapshot,
+    ...analysis,
+  };
+}
+
 export function calculateIndicators(prices) {
   const closes = prices.map(p => p.close);
   const highs = prices.map(p => p.high);
@@ -143,6 +173,31 @@ function buildScoreContext(prices, indicators) {
     bbLower: indicators.bollingerBands.lower.at(-1),
     nearestSupport: indicators.levels.supports[0] ?? null,
     nearestResistance: indicators.levels.resistances[0] ?? null,
+  };
+}
+
+function buildIndicatorSnapshot(prices, indicators) {
+  const context = buildScoreContext(prices, indicators);
+
+  return {
+    close: context.lastClose,
+    rsi: context.rsi,
+    macd: context.macd,
+    macdSignal: context.macdSignal,
+    macdHistogram: context.histogram,
+    bollingerUpper: context.bbUpper,
+    bollingerMiddle: context.bbMiddle,
+    bollingerLower: context.bbLower,
+    ema20: context.ema20,
+    ema50: context.ema50,
+    sma200: context.sma200,
+    atr14: context.atr,
+    adx14: context.adx,
+    plusDI: context.plusDI,
+    minusDI: context.minusDI,
+    volumeRatio: context.volumeRatio,
+    nearestSupport: context.nearestSupport,
+    nearestResistance: context.nearestResistance,
   };
 }
 
@@ -383,6 +438,26 @@ function detectSupportResistance(prices, lookback = 60, pivotWindow = 2) {
     supports: dedupedLows.map(rnd),
     resistances: dedupedHighs.map(rnd),
   };
+}
+
+function findTargetIndexOnOrBefore(prices, requestedDate) {
+  const normalizedDate = normalizeDateString(requestedDate);
+  if (!normalizedDate) return prices.length - 1;
+
+  for (let i = prices.length - 1; i >= 0; i -= 1) {
+    if (prices[i]?.date && prices[i].date <= normalizedDate) {
+      return i;
+    }
+  }
+
+  return -1;
+}
+
+function normalizeDateString(value) {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toISOString().slice(0, 10);
 }
 
 function calcRSI(closes, period = 14) {

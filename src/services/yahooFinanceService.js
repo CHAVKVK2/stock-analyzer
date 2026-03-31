@@ -26,7 +26,7 @@ export async function getPriceHistory(ticker, range = '6mo') {
   const cached = getCached(cacheKey);
   if (cached) return cached;
 
-  const daysMap = { '1mo': 30, '3mo': 90, '6mo': 180, '1y': 365, '2y': 730 };
+  const daysMap = { '1mo': 30, '3mo': 90, '6mo': 180, '1y': 365, '2y': 730, '5y': 1825 };
   const days = daysMap[range] || 180;
   const period1 = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
 
