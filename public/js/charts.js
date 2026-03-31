@@ -6,11 +6,11 @@ Chart.defaults.font.family = "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'No
 
 const chartInstances = {};
 const PRICE_DATASET_GROUPS = {
-  bollinger: ['BB Upper', 'BB Middle', 'BB Lower'],
-  movingAverages: ['EMA 20', 'EMA 50', 'SMA 200', 'Volume MA20'],
-  supportResistance: ['Support 1', 'Support 2', 'Support 3', 'Resistance 1', 'Resistance 2', 'Resistance 3'],
-  rsi: ['RSI', 'RSI Ref 70', 'RSI Ref 30'],
-  macd: ['MACD', 'MACD Signal', 'MACD Histogram'],
+  bollinger: ['볼린저 상단', '볼린저 중심', '볼린저 하단'],
+  movingAverages: ['EMA 20', 'EMA 50', 'SMA 200', '거래량 MA20'],
+  supportResistance: ['지지선 1', '지지선 2', '지지선 3', '저항선 1', '저항선 2', '저항선 3'],
+  rsi: ['RSI', 'RSI 기준선 70', 'RSI 기준선 30'],
+  macd: ['MACD', 'MACD 시그널', 'MACD 히스토그램'],
 };
 
 function destroyChart(id) {
@@ -84,8 +84,8 @@ function buildPriceChart(data) {
   const rsiRef70 = labels.map(() => 70);
   const rsiRef30 = labels.map(() => 30);
 
-  const supportDatasets = buildLevelDatasets(labels, levels.supports, 'Support', 'rgba(63, 185, 80, 0.28)');
-  const resistanceDatasets = buildLevelDatasets(labels, levels.resistances, 'Resistance', 'rgba(248, 81, 73, 0.28)');
+  const supportDatasets = buildLevelDatasets(labels, levels.supports, '지지선', 'rgba(63, 185, 80, 0.28)');
+  const resistanceDatasets = buildLevelDatasets(labels, levels.resistances, '저항선', 'rgba(248, 81, 73, 0.28)');
 
   chartInstances.price = new Chart(context, {
     type: 'line',
@@ -93,7 +93,7 @@ function buildPriceChart(data) {
       labels,
       datasets: [
         {
-          label: 'Close',
+          label: '종가',
           data: closes,
           borderColor: '#58a6ff',
           backgroundColor: 'transparent',
@@ -139,7 +139,7 @@ function buildPriceChart(data) {
           order: 4,
         },
         {
-          label: 'BB Upper',
+          label: '볼린저 상단',
           data: bb.upper,
           borderColor: 'rgba(139, 148, 158, 0.45)',
           backgroundColor: 'transparent',
@@ -151,7 +151,7 @@ function buildPriceChart(data) {
           order: 2,
         },
         {
-          label: 'BB Middle',
+          label: '볼린저 중심',
           data: bb.middle,
           borderColor: 'rgba(139, 148, 158, 0.75)',
           backgroundColor: 'transparent',
@@ -163,7 +163,7 @@ function buildPriceChart(data) {
           order: 2,
         },
         {
-          label: 'BB Lower',
+          label: '볼린저 하단',
           data: bb.lower,
           borderColor: 'rgba(139, 148, 158, 0.45)',
           backgroundColor: 'transparent',
@@ -177,7 +177,7 @@ function buildPriceChart(data) {
         ...supportDatasets,
         ...resistanceDatasets,
         {
-          label: 'Volume',
+          label: '거래량',
           data: volumes,
           type: 'bar',
           backgroundColor: 'rgba(63, 185, 80, 0.18)',
@@ -187,7 +187,7 @@ function buildPriceChart(data) {
           order: 10,
         },
         {
-          label: 'Volume MA20',
+          label: '거래량 MA20',
           data: volumeIndicators.volumeMA20,
           borderColor: '#d29922',
           backgroundColor: 'transparent',
@@ -212,7 +212,7 @@ function buildPriceChart(data) {
           order: 5,
         },
         {
-          label: 'RSI Ref 70',
+          label: 'RSI 기준선 70',
           data: rsiRef70,
           type: 'line',
           borderColor: 'rgba(248, 81, 73, 0.35)',
@@ -226,7 +226,7 @@ function buildPriceChart(data) {
           order: 5,
         },
         {
-          label: 'RSI Ref 30',
+          label: 'RSI 기준선 30',
           data: rsiRef30,
           type: 'line',
           borderColor: 'rgba(63, 185, 80, 0.35)',
@@ -253,7 +253,7 @@ function buildPriceChart(data) {
           order: 6,
         },
         {
-          label: 'MACD Signal',
+          label: 'MACD 시그널',
           data: macd.signalLine,
           type: 'line',
           borderColor: '#f0883e',
@@ -266,7 +266,7 @@ function buildPriceChart(data) {
           order: 6,
         },
         {
-          label: 'MACD Histogram',
+          label: 'MACD 히스토그램',
           data: macd.histogram,
           type: 'bar',
           backgroundColor: histogramColors,
@@ -293,8 +293,8 @@ function buildPriceChart(data) {
               const label = item.dataset.label;
               const raw = item.raw;
               if (raw == null) return null;
-              if (label === 'Volume') return `Volume: ${formatVolume(raw)}`;
-              if (label === 'Volume MA20') return `Volume MA20: ${formatVolume(raw)}`;
+              if (label === '거래량') return `거래량: ${formatVolume(raw)}`;
+              if (label === '거래량 MA20') return `거래량 MA20: ${formatVolume(raw)}`;
               if (label.startsWith('RSI')) return `${label}: ${Number(raw).toFixed(2)}`;
               if (label.startsWith('MACD')) return `${label}: ${Number(raw).toFixed(4)}`;
               return `${label}: ${formatPrice(raw, data.meta.currency)}`;

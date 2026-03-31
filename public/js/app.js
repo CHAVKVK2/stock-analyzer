@@ -183,8 +183,8 @@ async function search(ticker, range) {
     if (technicalResult.status !== 'fulfilled' || technicalResult.value.error) {
       const errorText = technicalResult.status === 'fulfilled'
         ? technicalResult.value.error
-        : 'Failed to load technical analysis data.';
-      showError(errorText || 'Failed to load technical analysis data.');
+        : '기술적 분석 데이터를 불러오지 못했습니다.';
+      showError(errorText || '기술적 분석 데이터를 불러오지 못했습니다.');
       showLoading(false);
       return;
     }
@@ -205,7 +205,7 @@ async function search(ticker, range) {
     showMainContent();
     fetchAndRenderNews(technicalResult.value.resolvedTicker);
   } catch (_) {
-    showError('Server connection failed. Please try again.');
+    showError('서버 연결에 실패했습니다. 다시 시도해 주세요.');
     showLoading(false);
   }
 }
@@ -350,7 +350,7 @@ async function reloadTechnical() {
     showLoading(false);
     showMainContent();
   } catch (_) {
-    showError('Failed to reload technical data.');
+    showError('기술적 분석 데이터를 다시 불러오지 못했습니다.');
     showLoading(false);
   }
 }
@@ -418,7 +418,7 @@ async function fetchAndRenderNews(ticker) {
     const data = await response.json();
     renderNews(data.news || []);
   } catch (_) {
-    list.innerHTML = '<p class="news-empty">Failed to load company news.</p>';
+    list.innerHTML = '<p class="news-empty">기업 뉴스를 불러오지 못했습니다.</p>';
   } finally {
     spinner.classList.add('hidden');
   }
@@ -427,7 +427,7 @@ async function fetchAndRenderNews(ticker) {
 function renderNews(articles) {
   const list = document.getElementById('newsList');
   if (!articles.length) {
-    list.innerHTML = '<p class="news-empty">No recent company news was found.</p>';
+    list.innerHTML = '<p class="news-empty">최근 기업 뉴스를 찾지 못했습니다.</p>';
     return;
   }
 
