@@ -143,62 +143,68 @@ function toggleBacktestMarkers(show) {
 
 function buildPriceChart(data) {
   destroyLightweightChart();
+  destroyChart('priceFallback');
 
   const container = document.getElementById('priceChart');
   const tooltip = document.getElementById('priceChartTooltip');
-  if (!container || !window.LightweightCharts) return;
+  if (!container) return;
+  if (!window.LightweightCharts) {
+    buildPriceChartFallback(data, container);
+    return;
+  }
 
-  currentPriceChartMeta = {
-    labels: data.prices.map(item => item.date),
-    closes: data.prices.map(item => item.close),
-    currency: data.meta.currency,
-  };
+  try {
+    currentPriceChartMeta = {
+      labels: data.prices.map(item => item.date),
+      closes: data.prices.map(item => item.close),
+      currency: data.meta.currency,
+    };
 
-  const chart = LightweightCharts.createChart(container, {
-    layout: {
-      background: { color: '#0f172a' },
-      textColor: '#9fb0cb',
-      fontFamily: "'Segoe UI', 'Noto Sans KR', sans-serif",
-      fontSize: 12,
-    },
-    grid: {
-      vertLines: { color: 'rgba(148, 163, 184, 0.08)' },
-      horzLines: { color: 'rgba(148, 163, 184, 0.08)' },
-    },
-    crosshair: {
-      mode: LightweightCharts.CrosshairMode.Normal,
-      vertLine: {
-        color: 'rgba(88, 166, 255, 0.4)',
-        labelBackgroundColor: '#1f2937',
+    const chart = LightweightCharts.createChart(container, {
+      layout: {
+        background: { color: '#0f172a' },
+        textColor: '#9fb0cb',
+        fontFamily: "'Segoe UI', 'Noto Sans KR', sans-serif",
+        fontSize: 12,
       },
-      horzLine: {
-        color: 'rgba(88, 166, 255, 0.35)',
-        labelBackgroundColor: '#1f2937',
+      grid: {
+        vertLines: { color: 'rgba(148, 163, 184, 0.08)' },
+        horzLines: { color: 'rgba(148, 163, 184, 0.08)' },
       },
-    },
-    rightPriceScale: {
-      borderColor: 'rgba(148, 163, 184, 0.18)',
-      scaleMargins: { top: 0.08, bottom: 0.3 },
-    },
-    timeScale: {
-      borderColor: 'rgba(148, 163, 184, 0.18)',
-      timeVisible: true,
-      secondsVisible: false,
-    },
-    localization: {
-      priceFormatter: value => formatPrice(value, data.meta.currency),
-    },
-    handleScroll: { mouseWheel: true, pressedMouseMove: true, horzTouchDrag: true, vertTouchDrag: true },
-    handleScale: { axisPressedMouseMove: true, mouseWheel: true, pinch: true },
-  });
+      crosshair: {
+        mode: LightweightCharts.CrosshairMode.Normal,
+        vertLine: {
+          color: 'rgba(88, 166, 255, 0.4)',
+          labelBackgroundColor: '#1f2937',
+        },
+        horzLine: {
+          color: 'rgba(88, 166, 255, 0.35)',
+          labelBackgroundColor: '#1f2937',
+        },
+      },
+      rightPriceScale: {
+        borderColor: 'rgba(148, 163, 184, 0.18)',
+        scaleMargins: { top: 0.08, bottom: 0.3 },
+      },
+      timeScale: {
+        borderColor: 'rgba(148, 163, 184, 0.18)',
+        timeVisible: true,
+        secondsVisible: false,
+      },
+      localization: {
+        priceFormatter: value => formatPrice(value, data.meta.currency),
+      },
+      handleScroll: { mouseWheel: true, pressedMouseMove: true, horzTouchDrag: true, vertTouchDrag: true },
+      handleScale: { axisPressedMouseMove: true, mouseWheel: true, pinch: true },
+    });
 
-  lightweightState.chart = chart;
-  lightweightState.container = container;
-  lightweightState.tooltip = tooltip;
-  lightweightState.currency = data.meta.currency;
-  lightweightState.technicalData = data;
+    lightweightState.chart = chart;
+    lightweightState.container = container;
+    lightweightState.tooltip = tooltip;
+    lightweightState.currency = data.meta.currency;
+    lightweightState.technicalData = data;
 
-  const candleSeries = chart.addCandlestickSeries({
+    const candleSeries = chart.addCandlestickSeries({
     upColor: '#3fb950',
     downColor: '#f85149',
     borderVisible: false,
@@ -207,19 +213,19 @@ function buildPriceChart(data) {
     priceLineColor: '#58a6ff',
   });
 
-  const volumeSeries = chart.addHistogramSeries({
+    const volumeSeries = chart.addHistogramSeries({
     color: 'rgba(88, 166, 255, 0.35)',
     priceFormat: { type: 'volume' },
     priceScaleId: '',
     scaleMargins: { top: 0.78, bottom: 0 },
   });
 
-  chart.priceScale('').applyOptions({
+    chart.priceScale('').applyOptions({
     scaleMargins: { top: 0.78, bottom: 0 },
     borderVisible: false,
   });
 
-  const priceData = data.prices.map(item => ({
+    const priceData = data.prices.map(item => ({
     time: toBusinessDay(item.date),
     open: item.open,
     high: item.high,
@@ -227,27 +233,27 @@ function buildPriceChart(data) {
     close: item.close,
   }));
 
-  const volumeData = data.prices.map(item => ({
+    const volumeData = data.prices.map(item => ({
     time: toBusinessDay(item.date),
     value: item.volume,
     color: item.close >= item.open ? 'rgba(63, 185, 80, 0.45)' : 'rgba(248, 81, 73, 0.45)',
   }));
 
-  candleSeries.setData(priceData);
-  volumeSeries.setData(volumeData);
+    candleSeries.setData(priceData);
+    volumeSeries.setData(volumeData);
 
-  lightweightState.candleSeries = candleSeries;
-  lightweightState.volumeSeries = volumeSeries;
-  lightweightState.priceData = priceData;
-  lightweightState.volumeData = volumeData;
+    lightweightState.candleSeries = candleSeries;
+    lightweightState.volumeSeries = volumeSeries;
+    lightweightState.priceData = priceData;
+    lightweightState.volumeData = volumeData;
 
-  lightweightState.series.ema20 = createLineSeries(chart, '#f0883e', 2);
+    lightweightState.series.ema20 = createLineSeries(chart, '#f0883e', 2);
   lightweightState.series.ema50 = createLineSeries(chart, '#bc8cff', 2);
   lightweightState.series.sma200 = createLineSeries(chart, '#2ea043', 2, [6, 4]);
   lightweightState.series.bbUpper = createLineSeries(chart, 'rgba(139, 148, 158, 0.45)', 1, [4, 4]);
   lightweightState.series.bbMiddle = createLineSeries(chart, 'rgba(139, 148, 158, 0.8)', 1, [2, 2]);
   lightweightState.series.bbLower = createLineSeries(chart, 'rgba(139, 148, 158, 0.45)', 1, [4, 4]);
-  lightweightState.series.volumeMA20 = chart.addLineSeries({
+    lightweightState.series.volumeMA20 = chart.addLineSeries({
     color: '#d29922',
     lineWidth: 1,
     priceScaleId: '',
@@ -255,7 +261,7 @@ function buildPriceChart(data) {
     priceLineVisible: false,
   });
 
-  lightweightState.series.ema20.setData(buildLineData(data.prices, data.indicators.movingAverages.ema20));
+    lightweightState.series.ema20.setData(buildLineData(data.prices, data.indicators.movingAverages.ema20));
   lightweightState.series.ema50.setData(buildLineData(data.prices, data.indicators.movingAverages.ema50));
   lightweightState.series.sma200.setData(buildLineData(data.prices, data.indicators.movingAverages.sma200));
   lightweightState.series.bbUpper.setData(buildLineData(data.prices, data.indicators.bollingerBands.upper));
@@ -263,23 +269,145 @@ function buildPriceChart(data) {
   lightweightState.series.bbLower.setData(buildLineData(data.prices, data.indicators.bollingerBands.lower));
   lightweightState.series.volumeMA20.setData(buildLineData(data.prices, data.indicators.volumeIndicators.volumeMA20));
 
-  buildLevelSeries(chart, data.prices, data.indicators.levels || { supports: [], resistances: [] });
-  updateLightweightVisibility();
-  chart.timeScale().fitContent();
-  attachPriceTooltip(data.prices);
+    buildLevelSeries(chart, data.prices, data.indicators.levels || { supports: [], resistances: [] });
+    updateLightweightVisibility();
+    chart.timeScale().fitContent();
+    attachPriceTooltip(data.prices);
 
-  lightweightState.resizeHandler = () => {
-    if (!lightweightState.container || !lightweightState.chart) return;
-    const width = lightweightState.container.clientWidth;
-    const height = lightweightState.container.clientHeight || 360;
-    lightweightState.chart.applyOptions({ width, height });
-  };
+    lightweightState.resizeHandler = () => {
+      if (!lightweightState.container || !lightweightState.chart) return;
+      const width = lightweightState.container.clientWidth;
+      const height = lightweightState.container.clientHeight || 360;
+      lightweightState.chart.applyOptions({ width, height });
+    };
 
-  window.addEventListener('resize', lightweightState.resizeHandler);
-  lightweightState.resizeHandler();
-  syncBacktestMarkers();
-  toggleRSI(Boolean(document.getElementById('toggleRSI')?.checked));
-  toggleMACD(Boolean(document.getElementById('toggleMACD')?.checked));
+    window.addEventListener('resize', lightweightState.resizeHandler);
+    lightweightState.resizeHandler();
+    syncBacktestMarkers();
+    toggleRSI(Boolean(document.getElementById('toggleRSI')?.checked));
+    toggleMACD(Boolean(document.getElementById('toggleMACD')?.checked));
+  } catch (error) {
+    console.error('Lightweight chart failed, using fallback chart.', error);
+    destroyLightweightChart();
+    buildPriceChartFallback(data, container);
+  }
+}
+
+function buildPriceChartFallback(data, container) {
+  if (!window.Chart || !container) return;
+
+  container.innerHTML = '<canvas id="priceChartFallbackCanvas"></canvas>';
+  const canvas = document.getElementById('priceChartFallbackCanvas');
+  if (!canvas) return;
+
+  const labels = data.prices.map(item => item.date);
+  const closes = data.prices.map(item => item.close);
+  const movingAverages = data.indicators.movingAverages || {};
+  const bollinger = data.indicators.bollingerBands || {};
+  const volumeMA20 = data.indicators.volumeIndicators?.volumeMA20 || [];
+
+  chartInstances.priceFallback = new Chart(canvas.getContext('2d'), {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: '종가',
+          data: closes,
+          borderColor: '#58a6ff',
+          backgroundColor: 'transparent',
+          borderWidth: 2,
+          pointRadius: 0,
+          tension: 0.15,
+        },
+        {
+          label: 'EMA 20',
+          data: movingAverages.ema20 || [],
+          borderColor: '#f0883e',
+          backgroundColor: 'transparent',
+          borderWidth: 1.5,
+          pointRadius: 0,
+          tension: 0.15,
+        },
+        {
+          label: 'EMA 50',
+          data: movingAverages.ema50 || [],
+          borderColor: '#bc8cff',
+          backgroundColor: 'transparent',
+          borderWidth: 1.5,
+          pointRadius: 0,
+          tension: 0.15,
+        },
+        {
+          label: 'SMA 200',
+          data: movingAverages.sma200 || [],
+          borderColor: '#2ea043',
+          backgroundColor: 'transparent',
+          borderWidth: 1.5,
+          borderDash: [6, 4],
+          pointRadius: 0,
+          tension: 0.15,
+        },
+        {
+          label: '볼린저 상단',
+          data: bollinger.upper || [],
+          borderColor: 'rgba(139, 148, 158, 0.45)',
+          backgroundColor: 'transparent',
+          borderWidth: 1,
+          borderDash: [4, 4],
+          pointRadius: 0,
+          tension: 0.1,
+        },
+        {
+          label: '볼린저 하단',
+          data: bollinger.lower || [],
+          borderColor: 'rgba(139, 148, 158, 0.45)',
+          backgroundColor: 'transparent',
+          borderWidth: 1,
+          borderDash: [4, 4],
+          pointRadius: 0,
+          tension: 0.1,
+        },
+        {
+          label: '거래량 MA20',
+          data: volumeMA20,
+          borderColor: '#d29922',
+          backgroundColor: 'transparent',
+          borderWidth: 1.2,
+          pointRadius: 0,
+          tension: 0.15,
+          hidden: true,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label(context) {
+              return `${context.dataset.label}: ${formatPrice(context.raw, data.meta.currency)}`;
+            },
+          },
+        },
+      },
+      scales: {
+        x: {
+          ticks: { maxTicksLimit: 8, maxRotation: 0 },
+          grid: { color: '#21262d' },
+        },
+        y: {
+          grid: { color: '#21262d' },
+          ticks: {
+            callback: value => formatPrice(value, data.meta.currency),
+          },
+        },
+      },
+    },
+  });
 }
 
 function createLineSeries(chart, color, lineWidth, lineStyle) {
