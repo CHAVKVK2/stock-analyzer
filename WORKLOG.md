@@ -114,6 +114,19 @@ Commit:
 
 - `7a522b5` `Add KRX fallback for Korean stock search`
 
+### 10. Historical signal and backtest features
+
+- Added Point-in-Time signal lookup for a selected historical date.
+- Added a date-range backtest flow using historical daily signals and long-only trade simulation.
+- Added chart marker support for backtest entry and exit points, controlled by a checkbox near the indicator toggles.
+
+Commits:
+
+- `fd0071b` `Add historical single-date signal lookup`
+- `f577e2f` `과거 신호 조회 및 백테스트 UI 추가`
+- `88289c9` `Add historical signal UI and project docs`
+- `5edcaa7` `Add backtest entry exit chart markers`
+
 ## Current Status
 
 ### Search
@@ -128,10 +141,17 @@ Commit:
 
 - `/api/stock/technical` returns technical indicators, market state, scoring, and summary text.
 
+### Historical analysis
+
+- `/api/stock/historical-snapshot` returns a Point-in-Time signal using only data up to the selected date.
+- `/api/stock/backtest` runs a date-range backtest using daily historical signal evaluation.
+- Backtest entry and exit points can now be overlaid on the main price chart.
+
 ### Frontend
 
 - Signal dashboard is visible in Korean.
 - Chart labels are mostly localized into Korean.
+- Some text encoding cleanup is still needed in parts of the page.
 
 ### Remote backup
 
@@ -141,22 +161,74 @@ Commit:
 
 ## Recent Commit History
 
+- `5edcaa7` `Add backtest entry exit chart markers`
+- `88289c9` `Add historical signal UI and project docs`
+- `f577e2f` `과거 신호 조회 및 백테스트 UI 추가`
+- `fd0071b` `Add historical single-date signal lookup`
+- `c40bf44` `Refresh asset cache version`
+- `81fbf95` `Fix financial tab visibility`
+- `fb9a6ea` `Bust frontend cache for financials`
+- `9ce899a` `Fix financial table rendering`
+- `02ded7a` `Add fear and greed index card`
 - `7a522b5` `Add KRX fallback for Korean stock search`
-- `a2ee63c` `Add Hyundai short alias`
-- `8b32267` `Add more Korean stock aliases`
-- `693819c` `Fix English name search suffix handling`
-- `4576a29` `Support Korean stock name search`
-- `3d5bcf3` `Localize chart labels`
-- `f63a91e` `Localize signal engine UI`
-- `f997849` `Fix autocomplete symbol escaping`
-- `6fe6cf6` `Add signal dashboard UI`
-- `182ebc3` `Add technical scoring engine`
-- `49ec278` `Resolve Korean stock aliases`
-- `1752b71` `Fix financial statement labels`
+
+## Latest Evaluation
+
+### Claude Code review summary
+
+- Claude Code reviewed the current project state, recent commits, local dev status, and the project documents `AGENTS.md`, `WORKLOG.md`, and `LESSONS.md`.
+- The review conclusion was that the current direction is strong, but the existing signal engine should be understood as a trend-following and rule-based technical engine rather than a true quant prediction engine.
+
+### Main strengths called out in the review
+
+- Reusing the same analysis path for current-day and historical calculations was considered a strong architectural decision.
+- The current Point-in-Time flow correctly avoids future data leakage by slicing historical data before signal calculation.
+- The 5-part scoring structure (`trend`, `momentum`, `volume`, `location`, `risk`) was considered explainable and extensible.
+- The current product direction was viewed as a good base for later quant-style features.
+
+### Main risks called out in the review
+
+- `src/services/technicalService.js` is too large and currently mixes indicators, scoring, backtest logic, and summary generation.
+- `public/js/app.js` is also growing too large as a single orchestration file.
+- Score weights are hardcoded and are not yet backed by statistical validation.
+- The current backtest logic does not yet include slippage, taxes, or transaction costs.
+- Encoding issues in some UI strings still reduce clarity and product trust.
+
+### Product interpretation from the review
+
+- The current engine is fundamentally **trend-following**:
+  - it uses moving averages, MACD, ADX, RSI behavior, and volume confirmation to judge current direction and setup quality
+  - it does not yet estimate future return distributions or conditional historical probabilities
+- Because of that, the review recommended separating the product conceptually into:
+  - a **real-time technical analysis** area
+  - a **backtest / quant / probability** area
+
+### Most important recommendation
+
+- Before adding more advanced quant features, the codebase should first be stabilized by:
+  1. splitting `technicalService.js`
+  2. cleaning broken UI text and encoding issues
+  3. extracting score weights into constants or config
+  4. separating the UI into clearer product areas
+
+### Recommended next technical direction
+
+- The review suggested that the best next step toward predictive usefulness is not adding a new model first.
+- Instead, it recommended extending the existing backtest loop to produce **pattern frequency and outcome statistics**, such as:
+  - how often a specific setup led to gains after 5, 10, or 20 trading days
+  - what the average return and downside looked like after a setup
+  - how results changed by market regime
+
+### Recommended next product direction
+
+- Treat the current UI as the beginning of a dual-mode product:
+  - **technical analysis / signal dashboard**
+  - **quant / backtest / probability analysis**
+- This should be done incrementally through tabs or sections, not a full redesign.
 
 ## Suggested Next Steps
 
-1. Expand Korean localization for the remaining UI text that still appears garbled or partially untranslated.
-2. Add more technical panels such as ATR, ADX, and OBV to the visible frontend instead of only using them in scoring.
-3. Improve search ranking for short ambiguous inputs like `현대`, `삼성`, or `증권`.
-4. Add a small admin script to refresh and cache the KRX company list on a schedule instead of fetching it only on demand.
+1. Split `src/services/technicalService.js` into smaller backend modules without breaking current routes.
+2. Clean remaining broken UI text and encoding issues.
+3. Extract score weights into constants for later calibration.
+4. Add setup outcome statistics using the existing backtest loop before adding more complex predictive features.
