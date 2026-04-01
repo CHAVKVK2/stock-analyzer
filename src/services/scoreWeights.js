@@ -1,0 +1,42 @@
+export const SCORE_WEIGHTS = {
+  trend: {
+    emaCross: 8,
+    smaAlignment: 8,
+    priceAboveEma20: 5,
+    priceAboveSma200: 5,
+    adxDirectional: 4,
+  },
+  momentum: {
+    macdCross: 8,
+    histogramImprove: 4,
+    rsiBalanced: 6,
+    rsiRebound: 7,
+    rsiOverheatedPenalty: -6,
+    rsiOversoldPenalty: -6,
+  },
+  volume: {
+    surge: 8,
+    directionalSupport: 5,
+    directionalBreakdownSupport: 7,
+    obvConfirm: 4,
+    obvConfirmSell: 5,
+    breakoutBonus: 3,
+    lowVolumePenalty: -4,
+  },
+  location: {
+    supportBounce: 6,
+    resistanceBreakout: 8,
+    aboveBbMiddle: 3,
+    aboveBbUpperPenalty: -3,
+    nearResistancePenalty: -6,
+    nearResistanceReject: 5,
+    belowSupportBreak: 8,
+    belowBbLower: 2,
+  },
+  risk: {
+    lowAtrBonus: 5,
+    highAtrPenalty: -3,
+    highAtrSellBonus: 5,
+    rewardRiskBonus: 5,
+  },
+};

@@ -1,21 +1,15 @@
 import { calculateBacktestRange } from './backtestEngine.js';
 import { calculateIndicators, findTargetIndexOnOrBefore } from './indicators.js';
-import {
-  avg,
-  clampScore,
-  crossedAbove,
-  crossedBelow,
-  isNumber,
-  percentDistance,
-  rnd,
-  sumScores,
-} from './technicalUtils.js';
+import { buildScoreContext, calculateSignalScores } from './signalScoring.js';
+import { buildSignalSummary } from './signalSummary.js';
+import { avg, isNumber } from './technicalUtils.js';
 
 export function calculateTechnicalAnalysis(prices) {
   const indicators = calculateIndicators(prices);
   const marketState = evaluateMarketState(prices, indicators);
   const signalScores = calculateSignalScores(prices, indicators);
-  const signalSummary = buildSignalSummary(prices, indicators, marketState, signalScores);
+  const context = buildScoreContext(prices, indicators);
+  const signalSummary = buildSignalSummary(context, marketState, signalScores);
 
   return {
     indicators,
@@ -84,82 +78,6 @@ function evaluateMarketState(prices, indicators) {
   };
 }
 
-function calculateSignalScores(prices, indicators) {
-  const context = buildScoreContext(prices, indicators);
-
-  const buyBreakdown = {
-    trend: scoreTrendBuy(context),
-    momentum: scoreMomentumBuy(context),
-    volume: scoreVolumeBuy(context),
-    location: scoreLocationBuy(context),
-    risk: scoreRiskBuy(context),
-  };
-
-  const sellBreakdown = {
-    trend: scoreTrendSell(context),
-    momentum: scoreMomentumSell(context),
-    volume: scoreVolumeSell(context),
-    location: scoreLocationSell(context),
-    risk: scoreRiskSell(context),
-  };
-
-  return {
-    buyScore: clampScore(sumScores(buyBreakdown)),
-    sellScore: clampScore(sumScores(sellBreakdown)),
-    buyBreakdown,
-    sellBreakdown,
-  };
-}
-
-function buildSignalSummary(prices, indicators, marketState, signalScores) {
-  const context = buildScoreContext(prices, indicators);
-  const signal = determineSignal(signalScores.buyScore, signalScores.sellScore);
-  const dominantScore = signal === 'SELL' ? signalScores.sellScore : signalScores.buyScore;
-
-  return {
-    signal,
-    strength: determineStrength(dominantScore, signal),
-    reasons: buildReasons(context, marketState, signal),
-    risks: buildRisks(context, marketState, signal),
-  };
-}
-
-function buildScoreContext(prices, indicators) {
-  const volumes = prices.map(p => p.volume || 0);
-  const lastPrice = prices.at(-1) ?? null;
-  const prevPrice = prices.at(-2) ?? null;
-
-  return {
-    lastClose: lastPrice?.close ?? null,
-    prevClose: prevPrice?.close ?? null,
-    ema20: indicators.movingAverages.ema20.at(-1),
-    ema50: indicators.movingAverages.ema50.at(-1),
-    sma200: indicators.movingAverages.sma200.at(-1),
-    rsi: indicators.rsi.at(-1),
-    prevRsi: indicators.rsi.at(-2),
-    macd: indicators.macd.macdLine.at(-1),
-    prevMacd: indicators.macd.macdLine.at(-2),
-    macdSignal: indicators.macd.signalLine.at(-1),
-    prevMacdSignal: indicators.macd.signalLine.at(-2),
-    histogram: indicators.macd.histogram.at(-1),
-    prevHistogram: indicators.macd.histogram.at(-2),
-    atr: indicators.volatilityIndicators.atr14.at(-1),
-    adx: indicators.trendStrength.adx14.at(-1),
-    plusDI: indicators.trendStrength.plusDI.at(-1),
-    minusDI: indicators.trendStrength.minusDI.at(-1),
-    obv: indicators.volumeIndicators.obv.at(-1),
-    prevObv: indicators.volumeIndicators.obv.at(-2),
-    volume: volumes.at(-1) ?? null,
-    volumeMA20: indicators.volumeIndicators.volumeMA20.at(-1),
-    volumeRatio: indicators.volumeIndicators.volumeRatio,
-    bbUpper: indicators.bollingerBands.upper.at(-1),
-    bbMiddle: indicators.bollingerBands.middle.at(-1),
-    bbLower: indicators.bollingerBands.lower.at(-1),
-    nearestSupport: indicators.levels.supports[0] ?? null,
-    nearestResistance: indicators.levels.resistances[0] ?? null,
-  };
-}
-
 function buildIndicatorSnapshot(prices, indicators) {
   const context = buildScoreContext(prices, indicators);
 
@@ -183,179 +101,6 @@ function buildIndicatorSnapshot(prices, indicators) {
     nearestSupport: context.nearestSupport,
     nearestResistance: context.nearestResistance,
   };
-}
-
-function scoreTrendBuy(ctx) {
-  let score = 0;
-  if (isNumber(ctx.ema20) && isNumber(ctx.ema50) && ctx.ema20 > ctx.ema50) score += 8;
-  if (isNumber(ctx.ema50) && isNumber(ctx.sma200) && ctx.ema50 > ctx.sma200) score += 8;
-  if (isNumber(ctx.lastClose) && isNumber(ctx.ema20) && ctx.lastClose > ctx.ema20) score += 5;
-  if (isNumber(ctx.lastClose) && isNumber(ctx.sma200) && ctx.lastClose > ctx.sma200) score += 5;
-  if (isNumber(ctx.adx) && ctx.adx > 25 && isNumber(ctx.plusDI) && isNumber(ctx.minusDI) && ctx.plusDI > ctx.minusDI) score += 4;
-  return score;
-}
-
-function scoreMomentumBuy(ctx) {
-  let score = 0;
-  if (crossedAbove(ctx.prevMacd, ctx.prevMacdSignal, ctx.macd, ctx.macdSignal)) score += 8;
-  if (isNumber(ctx.histogram) && isNumber(ctx.prevHistogram) && ctx.histogram > ctx.prevHistogram) score += 4;
-  if (isNumber(ctx.rsi) && ctx.rsi >= 45 && ctx.rsi <= 65) score += 6;
-  if (isNumber(ctx.prevRsi) && isNumber(ctx.rsi) && ctx.prevRsi <= 30 && ctx.rsi > ctx.prevRsi) score += 7;
-  if (isNumber(ctx.rsi) && ctx.rsi > 75) score -= 6;
-  return score;
-}
-
-function scoreVolumeBuy(ctx) {
-  let score = 0;
-  if (isNumber(ctx.volumeRatio) && ctx.volumeRatio >= 1.5) score += 8;
-  if (isNumber(ctx.lastClose) && isNumber(ctx.prevClose) && ctx.lastClose > ctx.prevClose && isNumber(ctx.volumeRatio) && ctx.volumeRatio >= 1.2) score += 5;
-  if (isNumber(ctx.obv) && isNumber(ctx.prevObv) && ctx.obv > ctx.prevObv) score += 4;
-  if (isNumber(ctx.nearestResistance) && isNumber(ctx.lastClose) && ctx.lastClose > ctx.nearestResistance && isNumber(ctx.volumeRatio) && ctx.volumeRatio >= 1.5) score += 3;
-  if (isNumber(ctx.volumeRatio) && ctx.volumeRatio < 1) score -= 4;
-  return score;
-}
-
-function scoreLocationBuy(ctx) {
-  let score = 0;
-  if (isNumber(ctx.nearestSupport) && isNumber(ctx.lastClose) && percentDistance(ctx.lastClose, ctx.nearestSupport) <= 0.03 && ctx.lastClose >= ctx.nearestSupport) score += 6;
-  if (isNumber(ctx.nearestResistance) && isNumber(ctx.lastClose) && ctx.lastClose > ctx.nearestResistance) score += 8;
-  if (isNumber(ctx.bbMiddle) && isNumber(ctx.lastClose) && ctx.lastClose > ctx.bbMiddle) score += 3;
-  if (isNumber(ctx.bbUpper) && isNumber(ctx.lastClose) && ctx.lastClose > ctx.bbUpper) score -= 3;
-  if (isNumber(ctx.nearestResistance) && isNumber(ctx.lastClose) && percentDistance(ctx.nearestResistance, ctx.lastClose) <= 0.02 && ctx.lastClose < ctx.nearestResistance) score -= 6;
-  return score;
-}
-
-function scoreRiskBuy(ctx) {
-  let score = 0;
-  if (isNumber(ctx.atr) && isNumber(ctx.lastClose)) {
-    const atrRatio = ctx.atr / ctx.lastClose;
-    if (atrRatio <= 0.03) score += 5;
-    else if (atrRatio >= 0.06) score -= 3;
-  }
-  if (isNumber(ctx.nearestSupport) && isNumber(ctx.nearestResistance) && isNumber(ctx.lastClose)) {
-    const risk = Math.max(ctx.lastClose - ctx.nearestSupport, 0);
-    const reward = Math.max(ctx.nearestResistance - ctx.lastClose, 0);
-    if (risk > 0 && reward / risk >= 2) score += 5;
-  }
-  return score;
-}
-
-function scoreTrendSell(ctx) {
-  let score = 0;
-  if (isNumber(ctx.ema20) && isNumber(ctx.ema50) && ctx.ema20 < ctx.ema50) score += 8;
-  if (isNumber(ctx.ema50) && isNumber(ctx.sma200) && ctx.ema50 < ctx.sma200) score += 8;
-  if (isNumber(ctx.lastClose) && isNumber(ctx.ema20) && ctx.lastClose < ctx.ema20) score += 5;
-  if (isNumber(ctx.lastClose) && isNumber(ctx.sma200) && ctx.lastClose < ctx.sma200) score += 5;
-  if (isNumber(ctx.adx) && ctx.adx > 25 && isNumber(ctx.minusDI) && isNumber(ctx.plusDI) && ctx.minusDI > ctx.plusDI) score += 4;
-  return score;
-}
-
-function scoreMomentumSell(ctx) {
-  let score = 0;
-  if (crossedBelow(ctx.prevMacd, ctx.prevMacdSignal, ctx.macd, ctx.macdSignal)) score += 8;
-  if (isNumber(ctx.histogram) && isNumber(ctx.prevHistogram) && ctx.histogram < ctx.prevHistogram) score += 4;
-  if (isNumber(ctx.rsi) && ctx.rsi <= 35) score += 6;
-  if (isNumber(ctx.prevRsi) && isNumber(ctx.rsi) && ctx.prevRsi >= 70 && ctx.rsi < ctx.prevRsi) score += 7;
-  if (isNumber(ctx.rsi) && ctx.rsi < 25) score -= 6;
-  return score;
-}
-
-function scoreVolumeSell(ctx) {
-  let score = 0;
-  if (isNumber(ctx.volumeRatio) && ctx.volumeRatio >= 1.5 && isNumber(ctx.lastClose) && isNumber(ctx.prevClose) && ctx.lastClose < ctx.prevClose) score += 8;
-  if (isNumber(ctx.nearestSupport) && isNumber(ctx.lastClose) && ctx.lastClose < ctx.nearestSupport && isNumber(ctx.volumeRatio) && ctx.volumeRatio >= 1.2) score += 7;
-  if (isNumber(ctx.obv) && isNumber(ctx.prevObv) && ctx.obv < ctx.prevObv) score += 5;
-  if (isNumber(ctx.volumeRatio) && ctx.volumeRatio < 1) score -= 4;
-  return score;
-}
-
-function scoreLocationSell(ctx) {
-  let score = 0;
-  if (isNumber(ctx.nearestResistance) && isNumber(ctx.lastClose) && percentDistance(ctx.nearestResistance, ctx.lastClose) <= 0.02 && ctx.lastClose <= ctx.nearestResistance) score += 5;
-  if (isNumber(ctx.nearestSupport) && isNumber(ctx.lastClose) && ctx.lastClose < ctx.nearestSupport) score += 8;
-  if (isNumber(ctx.bbLower) && isNumber(ctx.lastClose) && ctx.lastClose < ctx.bbLower) score += 2;
-  return score;
-}
-
-function scoreRiskSell(ctx) {
-  let score = 0;
-  if (isNumber(ctx.atr) && isNumber(ctx.lastClose)) {
-    const atrRatio = ctx.atr / ctx.lastClose;
-    if (atrRatio >= 0.04) score += 5;
-  }
-  if (isNumber(ctx.nearestSupport) && isNumber(ctx.nearestResistance) && isNumber(ctx.lastClose)) {
-    const risk = Math.max(ctx.nearestResistance - ctx.lastClose, 0);
-    const reward = Math.max(ctx.lastClose - ctx.nearestSupport, 0);
-    if (risk > 0 && reward / risk >= 2) score += 5;
-  }
-  return score;
-}
-
-function buildReasons(ctx, marketState, signal) {
-  if (signal === 'NEUTRAL') {
-    return ['신호가 혼재돼서 지금은 바로 진입하기보다 관찰 종목으로 보는 편이 좋습니다.'];
-  }
-
-  const reasons = [];
-
-  if (signal === 'BUY') {
-    if (marketState.trend === 'uptrend') reasons.push('이동평균선 배열이 상승 추세를 지지하고 있습니다.');
-    if (crossedAbove(ctx.prevMacd, ctx.prevMacdSignal, ctx.macd, ctx.macdSignal)) reasons.push('MACD가 최근 골든크로스를 만들었습니다.');
-    if (isNumber(ctx.volumeRatio) && ctx.volumeRatio >= 1.5) reasons.push(`거래량이 20일 평균 대비 ${ctx.volumeRatio.toFixed(2)}배로 늘었습니다.`);
-    if (isNumber(ctx.adx) && ctx.adx > 25) reasons.push('ADX가 추세 강도가 충분하다는 점을 보여줍니다.');
-    if (isNumber(ctx.nearestSupport) && isNumber(ctx.lastClose) && percentDistance(ctx.lastClose, ctx.nearestSupport) <= 0.03) reasons.push('가격이 최근 지지 구간 근처에서 버티고 있습니다.');
-  } else {
-    if (marketState.trend === 'downtrend') reasons.push('이동평균선 배열이 하락 추세를 지지하고 있습니다.');
-    if (crossedBelow(ctx.prevMacd, ctx.prevMacdSignal, ctx.macd, ctx.macdSignal)) reasons.push('MACD가 최근 데드크로스를 만들었습니다.');
-    if (isNumber(ctx.volumeRatio) && ctx.volumeRatio >= 1.5) reasons.push(`하락 흐름에 평균 대비 ${ctx.volumeRatio.toFixed(2)}배의 거래량이 실렸습니다.`);
-    if (isNumber(ctx.adx) && ctx.adx > 25) reasons.push('ADX가 하락 추세 강도가 충분하다는 점을 보여줍니다.');
-    if (isNumber(ctx.nearestSupport) && isNumber(ctx.lastClose) && ctx.lastClose < ctx.nearestSupport) reasons.push('가격이 가까운 지지선을 이탈했습니다.');
-  }
-
-  return reasons.slice(0, 4);
-}
-
-function buildRisks(ctx, marketState, signal) {
-  const risks = [];
-
-  if (isNumber(ctx.atr) && isNumber(ctx.lastClose)) {
-    const atrRatio = ctx.atr / ctx.lastClose;
-    if (atrRatio >= 0.05) risks.push('ATR이 높아 평소보다 변동성이 큰 구간입니다.');
-  }
-
-  if (signal === 'BUY') {
-    if (isNumber(ctx.nearestResistance) && isNumber(ctx.lastClose) && percentDistance(ctx.nearestResistance, ctx.lastClose) <= 0.03 && ctx.lastClose < ctx.nearestResistance) {
-      risks.push('가격이 아직 최근 저항 구간에 가까워 부담이 남아 있습니다.');
-    }
-    if (isNumber(ctx.rsi) && ctx.rsi > 70) risks.push('RSI가 과열권에 가까워 추가 상승 여력이 줄었을 수 있습니다.');
-  } else if (signal === 'SELL') {
-    if (isNumber(ctx.nearestSupport) && isNumber(ctx.lastClose) && percentDistance(ctx.lastClose, ctx.nearestSupport) <= 0.03 && ctx.lastClose > ctx.nearestSupport) {
-      risks.push('가격이 지지선에 가까워 반등 가능성이 남아 있습니다.');
-    }
-    if (isNumber(ctx.rsi) && ctx.rsi < 30) risks.push('RSI가 과매도권에 가까워 되돌림 반등이 나올 수 있습니다.');
-  } else {
-    if (marketState.trendStrength === 'weak') risks.push('추세 강도가 약해서 가짜 신호가 나올 가능성이 있습니다.');
-  }
-
-  if (!risks.length) {
-    risks.push('일반적인 시장 변동 외에 두드러진 기술적 리스크는 크지 않습니다.');
-  }
-
-  return risks.slice(0, 3);
-}
-
-function determineSignal(buyScore, sellScore) {
-  const gap = Math.abs(buyScore - sellScore);
-  if (gap < 10) return 'NEUTRAL';
-  return buyScore > sellScore ? 'BUY' : 'SELL';
-}
-
-function determineStrength(score, signal) {
-  if (signal === 'NEUTRAL') return 'watch';
-  if (score >= 80) return 'very_strong';
-  if (score >= 65) return 'strong';
-  if (score >= 50) return 'watch';
-  return 'weak';
 }
 
 function resolveTrendState(lastClose, ema20, ema50, sma200) {
