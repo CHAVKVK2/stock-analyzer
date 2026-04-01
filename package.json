@@ -1,7 +1,7 @@
 {
   "name": "stock-analyzer",
   "version": "1.0.0",
-  "description": "한국/미국 주식 기술적 분석 및 재무제표 웹 애플리케이션",
+  "description": "\ud55c\uad6d/\ubbf8\uad6d \uc8fc\uc2dd \uae30\uc220\uc801 \ubd84\uc11d\uacfc \uc7ac\ubb34\uc81c\ud45c\ub97c \ud568\uaed8 \ubcf4\ub294 \uc6f9 \uc560\ud50c\ub9ac\ucf00\uc774\uc158",
   "type": "module",
   "main": "server.js",
   "scripts": {

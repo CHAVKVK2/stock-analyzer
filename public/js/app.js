@@ -1,5 +1,11 @@
 'use strict';
 
+const STRATEGY_LABELS = {
+  balanced: '\uade0\ud615\ud615',
+  trend_following: '\ucd94\uc138\ucd94\uc885\ud615',
+  mean_reversion: '\ud3c9\uade0\ud68c\uadc0\ud615',
+};
+
 const state = {
   currentTicker: null,
   currentRange: '6mo',
@@ -9,6 +15,7 @@ const state = {
   financialData: null,
   currency: 'USD',
   backtestData: null,
+  backtestComparisons: [],
 };
 
 const tickerInput = document.getElementById('tickerInput');
@@ -78,10 +85,12 @@ const backtestAvgLossReturn = document.getElementById('backtestAvgLossReturn');
 const backtestSignalCounts = document.getElementById('backtestSignalCounts');
 const backtestActionCounts = document.getElementById('backtestActionCounts');
 const backtestSetupStats = document.getElementById('backtestSetupStats');
+const backtestStrategyCompare = document.getElementById('backtestStrategyCompare');
 const backtestTableBody = document.getElementById('backtestTableBody');
 const chartSection = document.getElementById('chartSection');
 
 document.addEventListener('DOMContentLoaded', () => {
+  applyStaticLocalization();
   setupSearch();
   setupTabs();
   setupRangeButtons();
@@ -149,9 +158,7 @@ function setupSearch() {
   });
 
   document.addEventListener('click', event => {
-    if (!event.target.closest('.search-wrapper')) {
-      autocomplete.classList.add('hidden');
-    }
+    if (!event.target.closest('.search-wrapper')) autocomplete.classList.add('hidden');
   });
 }
 
@@ -188,8 +195,7 @@ async function triggerSearch() {
 
 async function resolveToTicker(query) {
   try {
-    const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
-    const data = await response.json();
+    const data = await fetchJson(`/api/search?q=${encodeURIComponent(query)}`);
     const top = (data.suggestions || [])[0];
     if (top) return { symbol: top.symbol, hasDot: top.symbol.includes('.'), resolved: true };
   } catch (_) {
@@ -200,8 +206,7 @@ async function resolveToTicker(query) {
 
 async function fetchAutocomplete(query) {
   try {
-    const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
-    const data = await response.json();
+    const data = await fetchJson(`/api/search?q=${encodeURIComponent(query)}`);
     renderAutocomplete(data.suggestions || []);
   } catch (_) {
     autocomplete.classList.add('hidden');
@@ -248,9 +253,7 @@ async function search(ticker, range) {
   resetFinancialPanels();
   resetHistoricalSignal();
   resetBacktest();
-  state.backtestData = null;
   document.getElementById('newsSection').classList.add('hidden');
-
   pushURL(ticker, range);
 
   try {
@@ -262,10 +265,10 @@ async function search(ticker, range) {
     ]);
 
     if (technicalResult.status !== 'fulfilled' || technicalResult.value.error) {
-      const errorText = technicalResult.status === 'fulfilled'
+      const message = technicalResult.status === 'fulfilled'
         ? technicalResult.value.error
-        : '기술적 분석 데이터를 불러오지 못했습니다.';
-      showError(errorText || '기술적 분석 데이터를 불러오지 못했습니다.');
+        : '\uae30\uc220\uc801 \ubd84\uc11d \ub370\uc774\ud130\ub97c \ubd88\ub7ec\uc624\uc9c0 \ubabb\ud588\uc2b5\ub2c8\ub2e4.';
+      showError(message);
       showLoading(false);
       return;
     }
@@ -292,7 +295,7 @@ async function search(ticker, range) {
     fetchAndRenderFearGreed();
     fetchAndRenderNews(technicalResult.value.resolvedTicker);
   } catch (_) {
-    showError('서버 연결에 실패했습니다. 잠시 후 다시 시도해 주세요.');
+    showError('\uc11c\ubc84 \uc5f0\uacb0\uc5d0 \uc2e4\ud328\ud588\uc2b5\ub2c8\ub2e4. \uc7a0\uc2dc \ud6c4 \ub2e4\uc2dc \uc2dc\ub3c4\ud574 \uc8fc\uc138\uc694.');
     showLoading(false);
   }
 }
@@ -341,10 +344,10 @@ function renderSignalOverview(data) {
   signalRisks.innerHTML = (summary.risks || []).map(risk => `<li>${escapeHtml(risk)}</li>`).join('');
 
   scoreCards.innerHTML = `
-    ${renderScoreCard('매수 점수', scores.buyScore, '현재 엔진 기준 매수 우위 점수입니다.', 'buy')}
-    ${renderScoreCard('매도 점수', scores.sellScore, '현재 엔진 기준 매도 우위 점수입니다.', 'sell')}
-    ${renderScoreCard('추세 강도', formatLocalizedValue(marketState.trendStrength), `방향: ${formatLocalizedValue(marketState.trend)}`, 'neutral')}
-    ${renderScoreCard('변동성', formatLocalizedValue(marketState.volatility), `모멘텀: ${formatLocalizedValue(marketState.momentum)}`, 'neutral')}
+    ${renderScoreCard('\ub9e4\uc218 \uc810\uc218', scores.buyScore, '\ud604\uc7ac \uc5d4\uc9c4 \uae30\uc900 \ub9e4\uc218 \uc6b0\uc704 \uc810\uc218\uc785\ub2c8\ub2e4.', 'buy')}
+    ${renderScoreCard('\ub9e4\ub3c4 \uc810\uc218', scores.sellScore, '\ud604\uc7ac \uc5d4\uc9c4 \uae30\uc900 \ub9e4\ub3c4 \uc6b0\uc704 \uc810\uc218\uc785\ub2c8\ub2e4.', 'sell')}
+    ${renderScoreCard('\ucd94\uc138 \uac15\ub3c4', formatLocalizedValue(marketState.trendStrength), `\ubc29\ud5a5: ${formatLocalizedValue(marketState.trend)}`, 'neutral')}
+    ${renderScoreCard('\ubcc0\ub3d9\uc131', formatLocalizedValue(marketState.volatility), `\ubaa8\uba58\ud140: ${formatLocalizedValue(marketState.momentum)}`, 'neutral')}
   `;
 
   marketBadges.innerHTML = [
@@ -403,8 +406,8 @@ function renderFinancialFallback() {
     if (!element) return;
     element.innerHTML = `
       <div class="no-data">
-        재무제표 데이터를 불러오지 못했습니다.<br>
-        잠시 후 다시 시도해 주세요.
+        \uc7ac\ubb34\uc81c\ud45c \ub370\uc774\ud130\ub97c \ubd88\ub7ec\uc624\uc9c0 \ubabb\ud588\uc2b5\ub2c8\ub2e4.<br>
+        \uc7a0\uc2dc \ud6c4 \ub2e4\uc2dc \uc2dc\ub3c4\ud574 \uc8fc\uc138\uc694.
       </div>
     `;
   });
@@ -457,7 +460,7 @@ async function fetchHistoricalSignal() {
   if (!state.currentTicker || !historicalDateInput.value) return;
 
   historicalSignalBtn.disabled = true;
-  historicalSignalBtn.textContent = '계산 중...';
+  historicalSignalBtn.textContent = '\uacc4\uc0b0 \uc911...';
 
   try {
     const suffix = suffixSelect.value;
@@ -471,10 +474,10 @@ async function fetchHistoricalSignal() {
 
     renderHistoricalSignal(data);
   } catch (_) {
-    showError('과거 날짜 신호를 불러오지 못했습니다.');
+    showError('\uacfc\uac70 \ub0a0\uc9dc \uc2e0\ud638\ub97c \ubd88\ub7ec\uc624\uc9c0 \ubabb\ud588\uc2b5\ub2c8\ub2e4.');
   } finally {
     historicalSignalBtn.disabled = false;
-    historicalSignalBtn.textContent = '계산';
+    historicalSignalBtn.textContent = '\uacc4\uc0b0';
   }
 }
 
@@ -503,7 +506,7 @@ function renderHistoricalSignal(data) {
 }
 
 function renderBreakdown(breakdown) {
-  if (!breakdown) return '<div class="breakdown-item">데이터 없음</div>';
+  if (!breakdown) return '<div class="breakdown-item">\ub370\uc774\ud130 \uc5c6\uc74c</div>';
   return Object.entries(breakdown).map(([key, value]) => `
     <div class="breakdown-item">
       <span>${escapeHtml(localizeBreakdownKey(key))}</span>
@@ -514,11 +517,11 @@ function renderBreakdown(breakdown) {
 
 function localizeBreakdownKey(key) {
   const labels = {
-    trend: '추세',
-    momentum: '모멘텀',
-    volume: '거래량',
-    location: '가격 위치',
-    risk: '리스크',
+    trend: '\ucd94\uc138',
+    momentum: '\ubaa8\uba58\ud140',
+    volume: '\uac70\ub798\ub7c9',
+    location: '\uac00\uaca9 \uc704\uce58',
+    risk: '\ub9ac\uc2a4\ud06c',
   };
   return labels[key] || key;
 }
@@ -539,18 +542,19 @@ function prepareBacktest(data) {
 
   backtestStartDate.max = lastDate;
   backtestEndDate.max = lastDate;
-
   if (!backtestEndDate.value) backtestEndDate.value = lastDate;
   if (!backtestStartDate.value) backtestStartDate.value = defaultStart;
 }
 
 function resetBacktest() {
   state.backtestData = null;
+  state.backtestComparisons = [];
   backtestResult.classList.add('hidden');
   backtestTableBody.innerHTML = '';
   backtestSignalCounts.innerHTML = '';
   backtestActionCounts.innerHTML = '';
   backtestSetupStats.innerHTML = '';
+  backtestStrategyCompare.innerHTML = '';
   backtestStartDate.value = '';
   backtestEndDate.value = '';
   backtestAvgTradeReturn.textContent = '-';
@@ -566,29 +570,35 @@ async function fetchBacktest() {
   if (!state.currentTicker || !backtestStartDate.value || !backtestEndDate.value) return;
 
   backtestBtn.disabled = true;
-  backtestBtn.textContent = '실행 중...';
+  backtestBtn.textContent = '\uc2e4\ud589 \uc911...';
 
   try {
-    const suffix = suffixSelect.value;
-    const strategy = state.currentStrategy;
-    const data = await fetchJson(`/api/stock/backtest?ticker=${encodeURIComponent(state.currentTicker)}&startDate=${encodeURIComponent(backtestStartDate.value)}&endDate=${encodeURIComponent(backtestEndDate.value)}&range=5y&suffix=${suffix}&strategy=${strategy}`);
-
-    if (data.error) {
-      showError(data.error);
-      return;
-    }
-
-    renderBacktest(data);
+    const comparisons = await fetchBacktestComparisons();
+    const primary = comparisons.find(item => item.strategy === state.currentStrategy) || comparisons[0];
+    if (!primary) throw new Error('No backtest result');
+    renderBacktest(primary, comparisons);
   } catch (_) {
-    showError('백테스트를 실행하지 못했습니다.');
+    showError('\ubc31\ud14c\uc2a4\ud2b8\ub97c \uc2e4\ud589\ud558\uc9c0 \ubabb\ud588\uc2b5\ub2c8\ub2e4.');
   } finally {
     backtestBtn.disabled = false;
-    backtestBtn.textContent = '실행';
+    backtestBtn.textContent = '\uc2e4\ud589';
   }
 }
 
-function renderBacktest(data) {
+async function fetchBacktestComparisons() {
+  const suffix = suffixSelect.value;
+  const strategies = Object.keys(STRATEGY_LABELS);
+  const requests = strategies.map(async strategy => {
+    const data = await fetchJson(`/api/stock/backtest?ticker=${encodeURIComponent(state.currentTicker)}&startDate=${encodeURIComponent(backtestStartDate.value)}&endDate=${encodeURIComponent(backtestEndDate.value)}&range=5y&suffix=${suffix}&strategy=${strategy}`);
+    if (data.error) throw new Error(data.error);
+    return data;
+  });
+  return Promise.all(requests);
+}
+
+function renderBacktest(data, comparisons) {
   state.backtestData = data;
+  state.backtestComparisons = comparisons;
   const summary = data.summary || {};
   const actualRange = data.actualRange || {};
   const statistics = data.statistics || {};
@@ -601,24 +611,15 @@ function renderBacktest(data) {
   backtestWinRate.textContent = formatPercent(summary.winRatePct);
   backtestMdd.textContent = formatPercent(summary.maxDrawdownPct);
   backtestBuyHold.textContent = formatPercent(summary.buyHoldReturnPct);
-  backtestActualRange.textContent = `${actualRange.startDate || '-'} ~ ${actualRange.endDate || '-'} (${actualRange.tradingDays || 0}일)`;
-
+  backtestActualRange.textContent = `${actualRange.startDate || '-'} ~ ${actualRange.endDate || '-'} (${actualRange.tradingDays || 0}\uc77c)`;
   backtestAvgTradeReturn.textContent = formatPercent(tradeStats.avgTradeReturnPct);
-  backtestAvgHoldingDays.textContent = tradeStats.avgHoldingDays == null ? '-' : `${tradeStats.avgHoldingDays.toFixed(1)}일`;
+  backtestAvgHoldingDays.textContent = tradeStats.avgHoldingDays == null ? '-' : `${tradeStats.avgHoldingDays.toFixed(1)}\uc77c`;
   backtestAvgWinReturn.textContent = formatPercent(tradeStats.avgWinReturnPct);
   backtestAvgLossReturn.textContent = formatPercent(tradeStats.avgLossReturnPct);
-
-  backtestSignalCounts.innerHTML = renderCountBreakdown(statistics.signalCounts, {
-    BUY: '매수 신호',
-    SELL: '매도 신호',
-    HOLD: '관망 신호',
-  });
-  backtestActionCounts.innerHTML = renderCountBreakdown(statistics.actionCounts, {
-    ENTER_LONG: '진입',
-    EXIT_LONG: '청산',
-    HOLD: '유지',
-  });
+  backtestSignalCounts.innerHTML = renderCountBreakdown(statistics.signalCounts, { BUY: '\ub9e4\uc218 \uc2e0\ud638', SELL: '\ub9e4\ub3c4 \uc2e0\ud638', HOLD: '\uad00\ub9dd \uc2e0\ud638' });
+  backtestActionCounts.innerHTML = renderCountBreakdown(statistics.actionCounts, { ENTER_LONG: '\uc9c4\uc785', EXIT_LONG: '\uccad\uc0b0', HOLD: '\uc720\uc9c0' });
   backtestSetupStats.innerHTML = renderSetupStats(statistics.setupStats || {});
+  backtestStrategyCompare.innerHTML = renderStrategyComparison(comparisons);
 
   backtestTableBody.innerHTML = results.map(item => `
     <tr>
@@ -634,14 +635,13 @@ function renderBacktest(data) {
   `).join('');
 
   if (typeof buildBacktestChart === 'function') buildBacktestChart(data);
+  if (typeof buildStrategyCompareChart === 'function') buildStrategyCompareChart(comparisons);
   if (typeof setBacktestMarkers === 'function') setBacktestMarkers(data);
-  if (typeof toggleBacktestMarkers === 'function') {
-    toggleBacktestMarkers(Boolean(toggleBacktestMarkersCheckbox?.checked));
-  }
+  if (typeof toggleBacktestMarkers === 'function') toggleBacktestMarkers(Boolean(toggleBacktestMarkersCheckbox?.checked));
 }
 
 function renderCountBreakdown(counts, labels) {
-  if (!counts) return '<div class="breakdown-item">데이터 없음</div>';
+  if (!counts) return '<div class="breakdown-item">\ub370\uc774\ud130 \uc5c6\uc74c</div>';
   return Object.entries(labels).map(([key, label]) => `
     <div class="breakdown-item">
       <span>${escapeHtml(label)}</span>
@@ -652,8 +652,8 @@ function renderCountBreakdown(counts, labels) {
 
 function renderSetupStats(setupStats) {
   const cards = [];
-  if (setupStats.buySignals) cards.push(buildSetupStatCard('매수 신호 이후', setupStats.buySignals));
-  if (setupStats.sellSignals) cards.push(buildSetupStatCard('매도 신호 이후', setupStats.sellSignals));
+  if (setupStats.buySignals) cards.push(buildSetupStatCard('\ub9e4\uc218 \uc2e0\ud638 \uc774\ud6c4', setupStats.buySignals));
+  if (setupStats.sellSignals) cards.push(buildSetupStatCard('\ub9e4\ub3c4 \uc2e0\ud638 \uc774\ud6c4', setupStats.sellSignals));
   return cards.join('');
 }
 
@@ -664,18 +664,58 @@ function buildSetupStatCard(title, stats) {
       <strong>${escapeHtml(formatSetupValue(value))}</strong>
     </div>
   `).join('');
-
-  return `
-    <div class="setup-stat-card">
-      <div class="setup-stat-title">${escapeHtml(title)}</div>
-      <div class="setup-stat-lines">${lines}</div>
-    </div>
-  `;
+  return `<div class="setup-stat-card"><div class="setup-stat-title">${escapeHtml(title)}</div><div class="setup-stat-lines">${lines}</div></div>`;
 }
 
 function formatSetupValue(value) {
-  if (!value || !value.count) return '표본 없음';
-  return `승률 ${formatPercent(value.winRatePct)} / 평균 ${formatPercent(value.avgReturnPct)}`;
+  if (!value || !value.count) return '\ud45c\ubcf8 \uc5c6\uc74c';
+  return `\uc2b9\ub960 ${formatPercent(value.winRatePct)} / \ud3c9\uade0 ${formatPercent(value.avgReturnPct)}`;
+}
+
+function renderStrategyComparison(comparisons) {
+  if (!comparisons?.length) return '';
+  const bestReturn = [...comparisons].sort((a, b) => (b.summary?.cumulativeReturnPct ?? -Infinity) - (a.summary?.cumulativeReturnPct ?? -Infinity))[0];
+  const bestWinRate = [...comparisons].sort((a, b) => (b.summary?.winRatePct ?? -Infinity) - (a.summary?.winRatePct ?? -Infinity))[0];
+  const lowestMdd = [...comparisons].sort((a, b) => Math.abs(a.summary?.maxDrawdownPct ?? Infinity) - Math.abs(b.summary?.maxDrawdownPct ?? Infinity))[0];
+  const badge = (label, value) => `<span class="strategy-compare-badge">${label} <strong>${escapeHtml(value)}</strong></span>`;
+  const rows = comparisons.map(item => `
+    <tr class="${item.strategy === state.currentStrategy ? 'is-selected' : ''}">
+      <td><strong>${escapeHtml(formatStrategy(item.strategy))}</strong>${item.strategy === state.currentStrategy ? ' (\uc120\ud0dd \uc911)' : ''}</td>
+      <td>${escapeHtml(formatPercent(item.summary?.cumulativeReturnPct))}</td>
+      <td>${escapeHtml(formatPercent(item.summary?.winRatePct))}</td>
+      <td>${escapeHtml(String(item.summary?.tradeCount ?? 0))}</td>
+      <td>${escapeHtml(formatPercent(item.summary?.maxDrawdownPct))}</td>
+      <td>${escapeHtml(formatPercent(item.summary?.buyHoldReturnPct))}</td>
+    </tr>
+  `).join('');
+
+  return `
+    <div class="strategy-compare-panel">
+      <div class="strategy-compare-header">
+        <div class="signal-panel-title">\uc804\ub7b5\ubcc4 \ubc31\ud14c\uc2a4\ud2b8 \ube44\uad50</div>
+        <div class="strategy-compare-badges">
+          ${badge('\ucd5c\uace0 \uc218\uc775\ub960', formatStrategy(bestReturn.strategy))}
+          ${badge('\ucd5c\uace0 \uc2b9\ub960', formatStrategy(bestWinRate.strategy))}
+          ${badge('\uac00\uc7a5 \uc791\uc740 MDD', formatStrategy(lowestMdd.strategy))}
+        </div>
+      </div>
+      <div class="table-container">
+        <table class="fin-table strategy-compare-table">
+          <thead>
+            <tr>
+              <th>\uc804\ub7b5</th>
+              <th>\ub204\uc801 \uc218\uc775\ub960</th>
+              <th>\uc2b9\ub960</th>
+              <th>\ub9e4\ub9e4 \ud69f\uc218</th>
+              <th>MDD</th>
+              <th>Buy & Hold</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </div>
+  `;
 }
 
 function setupTabs() {
@@ -714,7 +754,6 @@ function getActiveRange() {
 
 async function reloadTechnical() {
   if (!state.currentTicker) return;
-
   showLoading(true);
   hideMainContent();
 
@@ -722,7 +761,6 @@ async function reloadTechnical() {
     const suffix = suffixSelect.value;
     const strategy = state.currentStrategy;
     const data = await fetchJson(`/api/stock/technical?ticker=${encodeURIComponent(state.currentTicker)}&range=${state.currentRange}&suffix=${suffix}&strategy=${strategy}`);
-
     if (data.error) {
       showError(data.error);
       showLoading(false);
@@ -740,7 +778,7 @@ async function reloadTechnical() {
     showLoading(false);
     showMainContent();
   } catch (_) {
-    showError('기술적 분석 데이터를 다시 불러오지 못했습니다.');
+    showError('\uae30\uc220\uc801 \ubd84\uc11d \ub370\uc774\ud130\ub97c \ub2e4\uc2dc \ubd88\ub7ec\uc624\uc9c0 \ubabb\ud588\uc2b5\ub2c8\ub2e4.');
     showLoading(false);
   }
 }
@@ -751,12 +789,9 @@ function setupIndicatorToggles() {
   document.getElementById('toggleLevels').addEventListener('change', event => toggleSupportResistance(event.target.checked));
   document.getElementById('toggleRSI').addEventListener('change', event => toggleRSI(event.target.checked));
   document.getElementById('toggleMACD').addEventListener('change', event => toggleMACD(event.target.checked));
-
   if (toggleBacktestMarkersCheckbox) {
     toggleBacktestMarkersCheckbox.addEventListener('change', event => {
-      if (typeof toggleBacktestMarkers === 'function') {
-        toggleBacktestMarkers(event.target.checked);
-      }
+      if (typeof toggleBacktestMarkers === 'function') toggleBacktestMarkers(event.target.checked);
     });
   }
 }
@@ -768,9 +803,7 @@ function syncIndicatorToggleState() {
   toggleRSI(document.getElementById('toggleRSI').checked);
   toggleMACD(document.getElementById('toggleMACD').checked);
   if (typeof setBacktestMarkers === 'function') setBacktestMarkers(state.backtestData);
-  if (typeof toggleBacktestMarkers === 'function') {
-    toggleBacktestMarkers(Boolean(toggleBacktestMarkersCheckbox?.checked));
-  }
+  if (typeof toggleBacktestMarkers === 'function') toggleBacktestMarkers(Boolean(toggleBacktestMarkersCheckbox?.checked));
 }
 
 function setupFinancialControls() {
@@ -794,9 +827,7 @@ function setupFinancialControls() {
       document.querySelectorAll('.period-btn').forEach(item => item.classList.remove('active'));
       button.classList.add('active');
       state.currentFinancialPeriod = button.dataset.period;
-      if (state.financialData) {
-        renderAllFinancials(state.financialData, state.currentFinancialPeriod, state.currency);
-      }
+      if (state.financialData) renderAllFinancials(state.financialData, state.currentFinancialPeriod, state.currency);
     });
   });
 }
@@ -805,7 +836,6 @@ async function fetchAndRenderNews(ticker) {
   const section = document.getElementById('newsSection');
   const list = document.getElementById('newsList');
   const spinner = document.getElementById('newsLoading');
-
   section.classList.remove('hidden');
   spinner.classList.remove('hidden');
   list.innerHTML = '';
@@ -814,7 +844,7 @@ async function fetchAndRenderNews(ticker) {
     const response = await fetchJson(`/api/news/${encodeURIComponent(ticker)}`);
     renderNews(response.news || []);
   } catch (_) {
-    list.innerHTML = '<p class="news-empty">관련 뉴스를 불러오지 못했습니다.</p>';
+    list.innerHTML = '<p class="news-empty">\uad00\ub828 \ub274\uc2a4\ub97c \ubd88\ub7ec\uc624\uc9c0 \ubabb\ud588\uc2b5\ub2c8\ub2e4.</p>';
   } finally {
     spinner.classList.add('hidden');
   }
@@ -846,10 +876,8 @@ function renderFearGreed(data) {
 }
 
 function buildFearGreedMeta(data) {
-  const source = data.source ? `출처: ${data.source}` : '';
-  const nextUpdate = Number.isFinite(data.timeUntilUpdate)
-    ? `다음 업데이트까지 약 ${Math.max(1, Math.round(data.timeUntilUpdate / 3600))}시간`
-    : '';
+  const source = data.source ? `\ucd9c\ucc98: ${data.source}` : '';
+  const nextUpdate = Number.isFinite(data.timeUntilUpdate) ? `\ub2e4\uc74c \uc5c5\ub370\uc774\ud2b8\uae4c\uc9c0 \uc57d ${Math.max(1, Math.round(data.timeUntilUpdate / 3600))}\uc2dc\uac04` : '';
   return [source, nextUpdate].filter(Boolean).join(' · ');
 }
 
@@ -861,22 +889,21 @@ function fearGreedToneClass(value) {
 
 function formatFearGreedLabel(classification) {
   const labels = {
-    'Extreme Fear': '극도의 공포',
-    Fear: '공포',
-    Neutral: '중립',
-    Greed: '탐욕',
-    'Extreme Greed': '극도의 탐욕',
+    'Extreme Fear': '\uadf9\ub3c4\uc758 \uacf5\ud3ec',
+    Fear: '\uacf5\ud3ec',
+    Neutral: '\uc911\ub9bd',
+    Greed: '\ud0d0\uc695',
+    'Extreme Greed': '\uadf9\ub3c4\uc758 \ud0d0\uc695',
   };
-  return labels[classification] || classification || '중립';
+  return labels[classification] || classification || '\uc911\ub9bd';
 }
 
 function renderNews(articles) {
   const list = document.getElementById('newsList');
   if (!articles.length) {
-    list.innerHTML = '<p class="news-empty">관련 뉴스를 찾지 못했습니다.</p>';
+    list.innerHTML = '<p class="news-empty">\uad00\ub828 \ub274\uc2a4\ub97c \ucc3e\uc9c0 \ubabb\ud588\uc2b5\ub2c8\ub2e4.</p>';
     return;
   }
-
   list.innerHTML = articles.map(article => `
     <a href="${escapeAttr(article.url)}" target="_blank" rel="noopener noreferrer" class="news-item">
       <div class="news-headline">${escapeHtml(article.headline)}</div>
@@ -888,26 +915,11 @@ function renderNews(articles) {
   `).join('');
 }
 
-function showLoading(show) {
-  loadingSpinner.classList.toggle('hidden', !show);
-}
-
-function showError(message) {
-  errorMsg.textContent = message;
-  errorBanner.classList.remove('hidden');
-}
-
-function hideError() {
-  errorBanner.classList.add('hidden');
-}
-
-function showMainContent() {
-  mainContent.classList.remove('hidden');
-}
-
-function hideMainContent() {
-  mainContent.classList.add('hidden');
-}
+function showLoading(show) { loadingSpinner.classList.toggle('hidden', !show); }
+function showError(message) { errorMsg.textContent = message; errorBanner.classList.remove('hidden'); }
+function hideError() { errorBanner.classList.add('hidden'); }
+function showMainContent() { mainContent.classList.remove('hidden'); }
+function hideMainContent() { mainContent.classList.add('hidden'); }
 
 function formatPrice(value, currency) {
   if (value == null) return '';
@@ -916,85 +928,54 @@ function formatPrice(value, currency) {
 }
 
 function formatSignal(signal) {
-  switch (signal) {
-    case 'BUY': return '매수 우위';
-    case 'SELL': return '매도 우위';
-    case 'HOLD': return '관망';
-    default: return '중립 / 관망';
-  }
+  if (signal === 'BUY') return '\ub9e4\uc218 \uc6b0\uc704';
+  if (signal === 'SELL') return '\ub9e4\ub3c4 \uc6b0\uc704';
+  if (signal === 'HOLD') return '\uad00\ub9dd';
+  return '\uc911\ub9bd / \uad00\ub9dd';
 }
 
-function formatStrength(strength) {
-  return formatLocalizedValue(strength || 'watch');
-}
-
-function formatStrategy(strategy) {
-  const labels = {
-    balanced: '균형형',
-    trend_following: '추세추종형',
-    mean_reversion: '평균회귀형',
-  };
-  return labels[strategy] || strategy || '균형형';
-}
-
-function formatScoreValue(value) {
-  if (typeof value === 'number') return `${value}/100`;
-  return formatLocalizedValue(value || 'unknown');
-}
+function formatStrength(strength) { return formatLocalizedValue(strength || 'watch'); }
+function formatStrategy(strategy) { return STRATEGY_LABELS[strategy] || strategy || STRATEGY_LABELS.balanced; }
+function formatScoreValue(value) { return typeof value === 'number' ? `${value}/100` : formatLocalizedValue(value || 'unknown'); }
 
 function formatLocalizedValue(value) {
   const normalized = String(value || '').trim().toLowerCase().replace(/\s+/g, '_');
   const labels = {
-    buy: '매수',
-    sell: '매도',
-    neutral: '중립',
-    hold: '관망',
-    unknown: '정보 없음',
-    watch: '관찰',
-    weak: '약함',
-    moderate: '보통',
-    strong: '강함',
-    very_strong: '매우 강함',
-    uptrend: '상승 추세',
-    downtrend: '하락 추세',
-    range: '횡보',
-    bullish: '강세',
-    bearish: '약세',
-    high: '높음',
-    low: '낮음',
-    above_ema20: 'EMA20 위',
-    below_ema20: 'EMA20 아래',
-    above_sma200: 'SMA200 위',
-    below_sma200: 'SMA200 아래',
-    long: '보유 중',
-    cash: '현금',
+    buy: '\ub9e4\uc218',
+    sell: '\ub9e4\ub3c4',
+    neutral: '\uc911\ub9bd',
+    hold: '\uad00\ub9dd',
+    unknown: '\uc815\ubcf4 \uc5c6\uc74c',
+    watch: '\uad00\ucc30',
+    weak: '\uc57d\ud568',
+    moderate: '\ubcf4\ud1b5',
+    strong: '\uac15\ud568',
+    very_strong: '\ub9e4\uc6b0 \uac15\ud568',
+    uptrend: '\uc0c1\uc2b9 \ucd94\uc138',
+    downtrend: '\ud558\ub77d \ucd94\uc138',
+    range: '\ud6a1\ubcf4',
+    bullish: '\uac15\uc138',
+    bearish: '\uc57d\uc138',
+    high: '\ub192\uc74c',
+    low: '\ub0ae\uc74c',
+    above_ema20: 'EMA20 \uc704',
+    below_ema20: 'EMA20 \uc544\ub798',
+    above_sma200: 'SMA200 \uc704',
+    below_sma200: 'SMA200 \uc544\ub798',
+    long: '\ubcf4\uc720 \uc911',
+    cash: '\ud604\uae08',
   };
-
   return labels[normalized] || String(value).replace(/_/g, ' ');
 }
 
 function formatAction(action) {
-  const labels = {
-    ENTER_LONG: '진입',
-    EXIT_LONG: '청산',
-    HOLD: '유지',
-  };
+  const labels = { ENTER_LONG: '\uc9c4\uc785', EXIT_LONG: '\uccad\uc0b0', HOLD: '\uc720\uc9c0' };
   return labels[action] || action || '-';
 }
 
-function formatMaybeNumber(value, digits = 2) {
-  return typeof value === 'number' && Number.isFinite(value) ? value.toFixed(digits) : '-';
-}
-
-function formatMaybePrice(value) {
-  return typeof value === 'number' && Number.isFinite(value) ? formatPrice(value, state.currency) : '-';
-}
-
-function formatPercent(value) {
-  if (typeof value !== 'number' || !Number.isFinite(value)) return '-';
-  const sign = value > 0 ? '+' : '';
-  return `${sign}${value.toFixed(2)}%`;
-}
+function formatMaybeNumber(value, digits = 2) { return typeof value === 'number' && Number.isFinite(value) ? value.toFixed(digits) : '-'; }
+function formatMaybePrice(value) { return typeof value === 'number' && Number.isFinite(value) ? formatPrice(value, state.currency) : '-'; }
+function formatPercent(value) { if (typeof value !== 'number' || !Number.isFinite(value)) return '-'; const sign = value > 0 ? '+' : ''; return `${sign}${value.toFixed(2)}%`; }
 
 function formatBollingerBands(indicators, snapshot) {
   const upper = indicators.bollingerUpper ?? snapshot.bollingerUpper;
@@ -1003,29 +984,74 @@ function formatBollingerBands(indicators, snapshot) {
   return `${formatMaybePrice(upper)} / ${formatMaybePrice(middle)} / ${formatMaybePrice(lower)}`;
 }
 
-async function fetchJson(url) {
-  const response = await fetch(url);
-  return response.json();
+async function fetchJson(url) { const response = await fetch(url); return response.json(); }
+
+function escapeHtml(str) { return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+function escapeAttr(str) { const value = String(str).trim(); if (!/^https?:\/\//i.test(value)) return '#'; return value.replace(/"/g, '%22'); }
+function escapeAttribute(str) { return String(str).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+
+function applyStaticLocalization() {
+  tickerInput.placeholder = '\uc608: \uc0bc\uc131\uc804\uc790, Apple, AAPL, 005930';
+  setOptionText(suffixSelect, ['\uc790\ub3d9', 'KOSPI (.KS)', 'KOSDAQ (.KQ)', '\uc811\ubbf8\uc0ac \uc5c6\uc74c']);
+  setOptionText(strategySelect, [STRATEGY_LABELS.balanced, STRATEGY_LABELS.trend_following, STRATEGY_LABELS.mean_reversion]);
+  setButtonText(searchBtn, '\uc870\ud68c');
+  setText('.strategy-label', '\uc804\ub7b5');
+  setText('#loadingSpinner p', '\ub370\uc774\ud130\ub97c \ubd88\ub7ec\uc624\ub294 \uc911\uc785\ub2c8\ub2e4.');
+  setText('.tab-btn[data-tab="technical"]', '\uae30\uc220\uc801 \ubd84\uc11d');
+  setText('.tab-btn[data-tab="financials"]', '\uc7ac\ubb34\uc81c\ud45c');
+  setText('.eyebrow', '\uc2e4\uc2dc\uac04 \uc2e0\ud638 \uc5d4\uc9c4');
+  setPanelTitles();
 }
 
-function escapeHtml(str) {
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
+function setPanelTitles() {
+  const toggleTexts = ['\uc2e0\ud638 \uacc4\uc0b0 \uc124\uba85', 'Point-in-Time', 'Backtest', '\uc2dc\uc7a5 \uc2ec\ub9ac', '\ucc28\ud2b8\uc640 \uc9c0\ud45c'];
+  document.querySelectorAll('.section-toggle-text').forEach((node, index) => { if (toggleTexts[index]) node.textContent = toggleTexts[index]; });
+  const titles = document.querySelectorAll('.historical-signal-title');
+  if (titles[0]) titles[0].textContent = '\ud604\uc7ac \uc810\uc218\ub97c \uacc4\uc0b0\ud558\ub294 \ud575\uc2ec \uae30\uc900';
+  if (titles[1]) titles[1].textContent = '\uacfc\uac70 \ud2b9\uc815 \ub0a0\uc9dc \uc2e0\ud638 \uc870\ud68c';
+  if (titles[2]) titles[2].textContent = '\ub0a0\uc9dc \uad6c\uac04 \ubc31\ud14c\uc2a4\ud2b8';
+  const notes = document.querySelectorAll('.historical-signal-note');
+  if (notes[0]) notes[0].textContent = '\uc120\ud0dd\ud55c \ub0a0\uc9dc\uae4c\uc9c0\uc758 \uacfc\uac70 \ub370\uc774\ud130\ub9cc \uc0ac\uc6a9\ud574\uc11c \uadf8 \uc2dc\uc810\uc758 \uc810\uc218\uc640 \uc2e0\ud638\ub97c \uacc4\uc0b0\ud569\ub2c8\ub2e4.';
+  if (notes[1]) notes[1].textContent = '\uc120\ud0dd\ud55c \uc804\ub7b5 \uae30\uc900\uc73c\ub85c \uad6c\uac04\ubcc4 \uc2e0\ud638\ub97c \uacc4\uc0b0\ud558\uace0 \uc2e4\uc81c \uc9c4\uc785/\uccad\uc0b0 \uae30\ub85d\uc744 \uc694\uc57d\ud569\ub2c8\ub2e4.';
+  setButtonText(historicalSignalBtn, '\uacc4\uc0b0');
+  setButtonText(backtestBtn, '\uc2e4\ud589');
+  const signalPanelTitles = document.querySelectorAll('.signal-panel-title');
+  if (signalPanelTitles[0]) signalPanelTitles[0].textContent = '\ub9e4\uc218 \uc810\uc218';
+  if (signalPanelTitles[1]) signalPanelTitles[1].textContent = '\ub9e4\ub3c4 \uc810\uc218';
+  if (signalPanelTitles[2]) signalPanelTitles[2].textContent = '\uc804\ub7b5 \ubaa8\ub4dc \ucc28\uc774';
+  if (signalPanelTitles[3]) signalPanelTitles[3].textContent = '\ub9e4\uc218 \uc810\uc218 \uad6c\uc131';
+  if (signalPanelTitles[4]) signalPanelTitles[4].textContent = '\ub9e4\ub3c4 \uc810\uc218 \uad6c\uc131';
+  if (signalPanelTitles[5]) signalPanelTitles[5].textContent = '\uc2e0\ud638 \ubc1c\uc0dd \ud69f\uc218';
+  if (signalPanelTitles[6]) signalPanelTitles[6].textContent = '\uc2e4\uc81c \ud589\ub3d9 \ud69f\uc218';
+  if (signalPanelTitles[7]) signalPanelTitles[7].textContent = '\uc2e0\ud638 \uc774\ud6c4 \ud3c9\uade0 \uc131\uacfc';
+  const summaryLabels = document.querySelectorAll('.historical-label');
+  const labelTexts = ['\uc120\ud0dd\ud55c \ub0a0\uc9dc', '\uc2e4\uc81c \uacc4\uc0b0 \uae30\uc900\uc77c', '\ucd5c\uc885 \uc2e0\ud638', '\ub9e4\uc218 / \ub9e4\ub3c4 \uc810\uc218', '\ub204\uc801 \uc218\uc775\ub960', '\ub9e4\ub9e4 \ud69f\uc218', '\uc2b9\ub960', 'MDD', 'Buy & Hold', '\uc2e4\uc81c \uae30\uac04'];
+  summaryLabels.forEach((node, index) => { if (labelTexts[index]) node.textContent = labelTexts[index]; });
+  const indicatorLabels = document.querySelectorAll('.historical-indicator-item span');
+  const indicatorTexts = ['\uc885\uac00', 'RSI', 'MACD', 'MACD \uc2dc\uadf8\ub110', '\ubcfc\ub9b0\uc800 \ubc34\ub4dc', 'EMA20 / EMA50', 'ATR14 / ADX14', '\uac70\ub798\ub7c9 \ube44\uc728', '\uc9c0\uc9c0\uc120 / \uc800\ud56d\uc120', '\ud3c9\uade0 \uac70\ub798 \uc218\uc775\ub960', '\ud3c9\uade0 \ubcf4\uc720 \uc77c\uc218', '\ud3c9\uade0 \uc2b9\ub9ac \uc218\uc775\ub960', '\ud3c9\uade0 \uc190\uc2e4 \uc218\uc775\ub960'];
+  indicatorLabels.forEach((node, index) => { if (indicatorTexts[index]) node.textContent = indicatorTexts[index]; });
+  setText('.fear-greed-eyebrow', '\uc2dc\uc7a5 \uc2ec\ub9ac');
+  setText('.fear-greed-title', '\uacf5\ud3ec\ud0d0\uc695\uc9c0\uc218');
+  document.querySelectorAll('.fear-greed-scale-labels span').forEach((node, index) => {
+    node.textContent = ['\uadf9\ub3c4\uc758 \uacf5\ud3ec', '\uc911\ub9bd', '\uadf9\ub3c4\uc758 \ud0d0\uc695'][index];
+  });
+  setText('.news-title', '\uad00\ub828 \ub274\uc2a4');
+  setText('.range-label', '\ucc28\ud2b8 \uae30\uac04:');
+  setText('.chart-title', '\uc8fc\uac00 \ud750\ub984');
+  document.querySelectorAll('.legend-item').forEach((node, index) => {
+    node.lastChild.nodeValue = ['\uc885\uac00', '\uc774\ub3d9\ud3c9\uade0\uc120', '\ubcfc\ub9b0\uc800 \ubc34\ub4dc', '\uac70\ub798\ub7c9 MA20'][index] ? ` ${['\uc885\uac00', '\uc774\ub3d9\ud3c9\uade0\uc120', '\ubcfc\ub9b0\uc800 \ubc34\ub4dc', '\uac70\ub798\ub7c9 MA20'][index]}` : node.lastChild.nodeValue;
+  });
+  setText('.indicator-toggles-label', '\uc9c0\ud45c \ud1a0\uae00');
+  const indicatorToggles = document.querySelectorAll('.indicator-toggle');
+  ['EMA / SMA', '\ubcfc\ub9b0\uc800 \ubc34\ub4dc', '\uc9c0\uc9c0\uc120 / \uc800\ud56d\uc120', 'RSI', 'MACD', '\ubc31\ud14c\uc2a4\ud2b8 \uc9c4\uc785/\uccad\uc0b0'].forEach((text, index) => {
+    if (indicatorToggles[index]) indicatorToggles[index].lastChild.nodeValue = ` ${text}`;
+  });
+  const finTabs = document.querySelectorAll('.fin-tab-btn');
+  ['\uc190\uc775\uacc4\uc0b0\uc11c', '\uc7ac\ubb34\uc0c1\ud0dc\ud45c', '\ud604\uae08\ud750\ub984\ud45c'].forEach((text, index) => { if (finTabs[index]) finTabs[index].textContent = text; });
+  const periodTabs = document.querySelectorAll('.period-btn');
+  ['\uc5f0\uac04', '\ubd84\uae30'].forEach((text, index) => { if (periodTabs[index]) periodTabs[index].textContent = text; });
 }
 
-function escapeAttr(str) {
-  const value = String(str).trim();
-  if (!/^https?:\/\//i.test(value)) return '#';
-  return value.replace(/"/g, '%22');
-}
-
-function escapeAttribute(str) {
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/"/g, '&quot;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
-}
+function setText(selector, text) { const node = document.querySelector(selector); if (node) node.textContent = text; }
+function setOptionText(select, labels) { if (!select) return; Array.from(select.options).forEach((option, index) => { if (labels[index]) option.textContent = labels[index]; }); }
+function setButtonText(button, text) { if (!button) return; const textNode = Array.from(button.childNodes).find(node => node.nodeType === Node.TEXT_NODE); if (textNode) textNode.nodeValue = ` ${text}`; else button.append(` ${text}`); }

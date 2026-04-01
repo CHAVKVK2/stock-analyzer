@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Stock Analyzer</title>
-  <link rel="stylesheet" href="/css/styles.css?v=20260401b" />
+  <link rel="stylesheet" href="/css/styles.css?v=20260401c" />
 </head>
 <body>
   <header class="header">
@@ -283,6 +283,16 @@
               <div class="historical-indicator-item"><span>평균 손실 수익률</span><strong id="backtestAvgLossReturn"></strong></div>
             </div>
 
+            <div id="backtestStrategyCompare" class="strategy-compare-wrap"></div>
+            <div class="chart-card strategy-compare-chart-card">
+              <div class="chart-header">
+                <span class="chart-title">전략별 누적 수익률 비교</span>
+              </div>
+              <div class="chart-wrap strategy-compare-chart-wrap">
+                <canvas id="strategyCompareChart"></canvas>
+              </div>
+            </div>
+
             <div class="breakdown-grid">
               <div class="signal-panel">
                 <div class="signal-panel-title">신호 발생 횟수</div>
@@ -472,8 +482,8 @@
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
-  <script src="/js/charts.js?v=20260401b"></script>
-  <script src="/js/financials.js?v=20260401b"></script>
-  <script src="/js/app.js?v=20260401b"></script>
+  <script src="/js/charts.js?v=20260401c"></script>
+  <script src="/js/financials.js?v=20260401c"></script>
+  <script src="/js/app.js?v=20260401c"></script>
 </body>
 </html>

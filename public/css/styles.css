@@ -756,6 +756,63 @@ body {
   margin-top: 16px;
 }
 
+.strategy-compare-wrap {
+  margin-bottom: 16px;
+}
+
+.strategy-compare-panel {
+  padding: 16px;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  background: rgba(8, 15, 30, 0.38);
+}
+
+.strategy-compare-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.strategy-compare-badges {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.strategy-compare-badge {
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(88, 166, 255, 0.1);
+  color: var(--text-primary);
+  border: 1px solid rgba(88, 166, 255, 0.18);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.strategy-compare-badge strong {
+  color: var(--accent-blue);
+}
+
+.strategy-compare-table td strong {
+  color: var(--text-primary);
+}
+
+.strategy-compare-table tr.is-selected td:first-child {
+  color: var(--accent-blue);
+  font-weight: 700;
+}
+
+.strategy-compare-chart-card {
+  margin-bottom: 16px;
+}
+
+.strategy-compare-chart-wrap {
+  height: 240px;
+}
+
 .setup-stats-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
