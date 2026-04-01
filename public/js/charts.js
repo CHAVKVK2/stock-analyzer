@@ -1,37 +1,55 @@
 'use strict';
 
-Chart.defaults.color = '#8b949e';
-Chart.defaults.borderColor = '#21262d';
-Chart.defaults.font.family = "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', sans-serif";
+if (window.Chart) {
+  Chart.defaults.color = '#8b949e';
+  Chart.defaults.borderColor = '#21262d';
+  Chart.defaults.font.family = "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', sans-serif";
+}
 
 const chartInstances = {};
+const lightweightState = {
+  chart: null,
+  container: null,
+  tooltip: null,
+  resizeHandler: null,
+  candleSeries: null,
+  volumeSeries: null,
+  series: {
+    ema20: null,
+    ema50: null,
+    sma200: null,
+    bbUpper: null,
+    bbMiddle: null,
+    bbLower: null,
+    volumeMA20: null,
+  },
+  levelSeries: {
+    supports: [],
+    resistances: [],
+  },
+  visible: {
+    bollinger: true,
+    movingAverages: true,
+    supportResistance: true,
+    backtestMarkers: false,
+  },
+  priceData: [],
+  volumeData: [],
+  markerData: [],
+  currency: 'USD',
+  technicalData: null,
+};
+
 const PRICE_LABELS = {
-  close: '\uc885\uac00',
+  close: '종가',
   ema20: 'EMA 20',
   ema50: 'EMA 50',
   sma200: 'SMA 200',
-  bbUpper: '\ubcfc\ub9b0\uc800 \uc0c1\ub2e8',
-  bbMiddle: '\ubcfc\ub9b0\uc800 \uc911\uc2ec',
-  bbLower: '\ubcfc\ub9b0\uc800 \ud558\ub2e8',
-  volume: '\uac70\ub798\ub7c9',
-  volumeMA20: '\uac70\ub798\ub7c9 MA20',
-  rsi: 'RSI',
-  rsiUpper: 'RSI 70',
-  rsiLower: 'RSI 30',
-  macd: 'MACD',
-  macdSignal: 'MACD \uc2dc\uadf8\ub110',
-  macdHistogram: 'MACD \ud788\uc2a4\ud1a0\uadf8\ub7a8',
-  entry: '\ubc31\ud14c\uc2a4\ud2b8 \uc9c4\uc785',
-  exit: '\ubc31\ud14c\uc2a4\ud2b8 \uccad\uc0b0',
-};
-
-const PRICE_DATASET_GROUPS = {
-  bollinger: [PRICE_LABELS.bbUpper, PRICE_LABELS.bbMiddle, PRICE_LABELS.bbLower],
-  movingAverages: [PRICE_LABELS.ema20, PRICE_LABELS.ema50, PRICE_LABELS.sma200, PRICE_LABELS.volumeMA20],
-  supportResistance: ['\uc9c0\uc9c0\uc120 1', '\uc9c0\uc9c0\uc120 2', '\uc9c0\uc9c0\uc120 3', '\uc800\ud56d\uc120 1', '\uc800\ud56d\uc120 2', '\uc800\ud56d\uc120 3'],
-  rsi: [PRICE_LABELS.rsi, PRICE_LABELS.rsiUpper, PRICE_LABELS.rsiLower],
-  macd: [PRICE_LABELS.macd, PRICE_LABELS.macdSignal, PRICE_LABELS.macdHistogram],
-  backtestMarkers: [PRICE_LABELS.entry, PRICE_LABELS.exit],
+  bbUpper: '볼린저 상단',
+  bbMiddle: '볼린저 중심',
+  bbLower: '볼린저 하단',
+  volume: '거래량',
+  volumeMA20: '거래량 MA20',
 };
 
 let currentPriceChartMeta = { labels: [], closes: [], currency: 'USD' };
@@ -44,144 +62,340 @@ function destroyChart(id) {
   }
 }
 
-function toggleBollingerBands(show) { setDatasetVisibility('price', PRICE_DATASET_GROUPS.bollinger, show); }
-function toggleMovingAverages(show) { setDatasetVisibility('price', PRICE_DATASET_GROUPS.movingAverages, show); }
-function toggleSupportResistance(show) { setDatasetVisibility('price', PRICE_DATASET_GROUPS.supportResistance, show); }
+function destroyLightweightChart() {
+  if (lightweightState.resizeHandler) {
+    window.removeEventListener('resize', lightweightState.resizeHandler);
+    lightweightState.resizeHandler = null;
+  }
+  if (lightweightState.chart) {
+    lightweightState.chart.remove();
+  }
+  lightweightState.chart = null;
+  lightweightState.container = null;
+  lightweightState.tooltip = null;
+  lightweightState.candleSeries = null;
+  lightweightState.volumeSeries = null;
+  lightweightState.series = {
+    ema20: null,
+    ema50: null,
+    sma200: null,
+    bbUpper: null,
+    bbMiddle: null,
+    bbLower: null,
+    volumeMA20: null,
+  };
+  lightweightState.levelSeries = { supports: [], resistances: [] };
+  lightweightState.priceData = [];
+  lightweightState.volumeData = [];
+  lightweightState.markerData = [];
+}
+
+function toggleBollingerBands(show) {
+  lightweightState.visible.bollinger = show;
+  ['bbUpper', 'bbMiddle', 'bbLower'].forEach(key => {
+    if (lightweightState.series[key]) {
+      lightweightState.series[key].applyOptions({ visible: show });
+    }
+  });
+}
+
+function toggleMovingAverages(show) {
+  lightweightState.visible.movingAverages = show;
+  ['ema20', 'ema50', 'sma200', 'volumeMA20'].forEach(key => {
+    if (lightweightState.series[key]) {
+      lightweightState.series[key].applyOptions({ visible: show });
+    }
+  });
+}
+
+function toggleSupportResistance(show) {
+  lightweightState.visible.supportResistance = show;
+  [...lightweightState.levelSeries.supports, ...lightweightState.levelSeries.resistances]
+    .forEach(series => series.applyOptions({ visible: show }));
+}
 
 function toggleRSI(show) {
-  const chart = chartInstances.price;
-  if (!chart) return;
-  setDatasetVisibility('price', PRICE_DATASET_GROUPS.rsi, show);
-  chart.options.scales.y2.display = show;
-  chart.update('none');
+  const card = document.getElementById('rsiChartCard');
+  if (!card) return;
+  card.classList.toggle('hidden', !show);
+  if (show && lightweightState.technicalData) {
+    buildRSIChart(lightweightState.technicalData);
+  } else {
+    destroyChart('rsi');
+  }
 }
 
 function toggleMACD(show) {
-  const chart = chartInstances.price;
-  if (!chart) return;
-  setDatasetVisibility('price', PRICE_DATASET_GROUPS.macd, show);
-  chart.options.scales.y3.display = show;
-  chart.update('none');
+  const card = document.getElementById('macdChartCard');
+  if (!card) return;
+  card.classList.toggle('hidden', !show);
+  if (show && lightweightState.technicalData) {
+    buildMACDChart(lightweightState.technicalData);
+  } else {
+    destroyChart('macd');
+  }
 }
 
-function toggleBacktestMarkers(show) { setDatasetVisibility('price', PRICE_DATASET_GROUPS.backtestMarkers, show); }
-
-function setDatasetVisibility(chartId, labels, show) {
-  const chart = chartInstances[chartId];
-  if (!chart) return;
-  chart.data.datasets.forEach((dataset, index) => {
-    if (labels.includes(dataset.label)) chart.getDatasetMeta(index).hidden = !show;
-  });
-  chart.update('none');
+function toggleBacktestMarkers(show) {
+  lightweightState.visible.backtestMarkers = show;
+  syncBacktestMarkers();
 }
 
 function buildPriceChart(data) {
-  destroyChart('price');
-  const canvas = document.getElementById('priceChart');
-  if (!canvas) return;
+  destroyLightweightChart();
 
-  const labels = data.prices.map(item => item.date);
-  const closes = data.prices.map(item => item.close);
-  const volumes = data.prices.map(item => item.volume);
-  const bb = data.indicators.bollingerBands;
-  const movingAverages = data.indicators.movingAverages;
-  const volumeIndicators = data.indicators.volumeIndicators;
-  const levels = data.indicators.levels || { supports: [], resistances: [] };
-  const rsiValues = data.indicators.rsi;
-  const macd = data.indicators.macd;
+  const container = document.getElementById('priceChart');
+  const tooltip = document.getElementById('priceChartTooltip');
+  if (!container || !window.LightweightCharts) return;
 
-  currentPriceChartMeta = { labels, closes, currency: data.meta.currency };
+  currentPriceChartMeta = {
+    labels: data.prices.map(item => item.date),
+    closes: data.prices.map(item => item.close),
+    currency: data.meta.currency,
+  };
 
-  const histogramColors = macd.histogram.map(value => {
-    if (value == null) return 'transparent';
-    return value >= 0 ? 'rgba(63, 185, 80, 0.5)' : 'rgba(248, 81, 73, 0.5)';
+  const chart = LightweightCharts.createChart(container, {
+    layout: {
+      background: { color: '#0f172a' },
+      textColor: '#9fb0cb',
+      fontFamily: "'Segoe UI', 'Noto Sans KR', sans-serif",
+      fontSize: 12,
+    },
+    grid: {
+      vertLines: { color: 'rgba(148, 163, 184, 0.08)' },
+      horzLines: { color: 'rgba(148, 163, 184, 0.08)' },
+    },
+    crosshair: {
+      mode: LightweightCharts.CrosshairMode.Normal,
+      vertLine: {
+        color: 'rgba(88, 166, 255, 0.4)',
+        labelBackgroundColor: '#1f2937',
+      },
+      horzLine: {
+        color: 'rgba(88, 166, 255, 0.35)',
+        labelBackgroundColor: '#1f2937',
+      },
+    },
+    rightPriceScale: {
+      borderColor: 'rgba(148, 163, 184, 0.18)',
+      scaleMargins: { top: 0.08, bottom: 0.3 },
+    },
+    timeScale: {
+      borderColor: 'rgba(148, 163, 184, 0.18)',
+      timeVisible: true,
+      secondsVisible: false,
+    },
+    localization: {
+      priceFormatter: value => formatPrice(value, data.meta.currency),
+    },
+    handleScroll: { mouseWheel: true, pressedMouseMove: true, horzTouchDrag: true, vertTouchDrag: true },
+    handleScale: { axisPressedMouseMove: true, mouseWheel: true, pinch: true },
   });
 
-  const supportDatasets = buildLevelDatasets(labels, levels.supports, '\uc9c0\uc9c0\uc120', 'rgba(63, 185, 80, 0.28)');
-  const resistanceDatasets = buildLevelDatasets(labels, levels.resistances, '\uc800\ud56d\uc120', 'rgba(248, 81, 73, 0.28)');
+  lightweightState.chart = chart;
+  lightweightState.container = container;
+  lightweightState.tooltip = tooltip;
+  lightweightState.currency = data.meta.currency;
+  lightweightState.technicalData = data;
 
-  chartInstances.price = new Chart(canvas.getContext('2d'), {
-    type: 'line',
-    data: {
-      labels,
-      datasets: [
-        datasetLine(PRICE_LABELS.close, closes, '#58a6ff', 'y', 3, 1.8),
-        datasetLine(PRICE_LABELS.ema20, movingAverages.ema20, '#f0883e', 'y', 4, 1.2),
-        datasetLine(PRICE_LABELS.ema50, movingAverages.ema50, '#bc8cff', 'y', 4, 1.2),
-        datasetLine(PRICE_LABELS.sma200, movingAverages.sma200, '#2ea043', 'y', 4, 1.2, [6, 4]),
-        datasetLine(PRICE_LABELS.bbUpper, bb.upper, 'rgba(139, 148, 158, 0.45)', 'y', 2, 1, [4, 3]),
-        datasetLine(PRICE_LABELS.bbMiddle, bb.middle, 'rgba(139, 148, 158, 0.75)', 'y', 2, 1, [2, 2]),
-        datasetLine(PRICE_LABELS.bbLower, bb.lower, 'rgba(139, 148, 158, 0.45)', 'y', 2, 1, [4, 3]),
-        ...supportDatasets,
-        ...resistanceDatasets,
-        ...buildBacktestMarkerDatasets(labels, closes),
-        { label: PRICE_LABELS.volume, data: volumes, type: 'bar', backgroundColor: 'rgba(63, 185, 80, 0.18)', borderColor: 'rgba(63, 185, 80, 0.35)', borderWidth: 0, yAxisID: 'yVol', order: 10 },
-        datasetLine(PRICE_LABELS.volumeMA20, volumeIndicators.volumeMA20, '#d29922', 'yVol', 9, 1),
-        { ...datasetLine(PRICE_LABELS.rsi, rsiValues, '#bc8cff', 'y2', 5, 1.4), hidden: true },
-        { ...datasetLine(PRICE_LABELS.rsiUpper, labels.map(() => 70), 'rgba(248, 81, 73, 0.35)', 'y2', 5, 1, [4, 4]), hidden: true, tension: 0 },
-        { ...datasetLine(PRICE_LABELS.rsiLower, labels.map(() => 30), 'rgba(63, 185, 80, 0.35)', 'y2', 5, 1, [4, 4]), hidden: true, tension: 0 },
-        { ...datasetLine(PRICE_LABELS.macd, macd.macdLine, '#58a6ff', 'y3', 6, 1.4), hidden: true },
-        { ...datasetLine(PRICE_LABELS.macdSignal, macd.signalLine, '#f0883e', 'y3', 6, 1.4), hidden: true },
-        { label: PRICE_LABELS.macdHistogram, data: macd.histogram, type: 'bar', backgroundColor: histogramColors, borderColor: histogramColors, borderWidth: 0, yAxisID: 'y3', hidden: true, order: 7 },
-      ],
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      interaction: { mode: 'index', intersect: false },
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          backgroundColor: '#21262d',
-          borderColor: '#30363d',
-          borderWidth: 1,
-          callbacks: {
-            label(item) {
-              const label = item.dataset.label;
-              const raw = item.raw;
-              if (raw == null) return null;
-              if (label === PRICE_LABELS.volume || label === PRICE_LABELS.volumeMA20) return `${label}: ${formatVolume(raw)}`;
-              if (label === PRICE_LABELS.entry || label === PRICE_LABELS.exit) return `${label}: ${formatPrice(raw, data.meta.currency)}`;
-              if (label.startsWith('RSI')) return `${label}: ${Number(raw).toFixed(2)}`;
-              if (label.startsWith('MACD')) return `${label}: ${Number(raw).toFixed(4)}`;
-              return `${label}: ${formatPrice(raw, data.meta.currency)}`;
-            },
-          },
-        },
-      },
-      scales: {
-        x: { ticks: { maxTicksLimit: 8, maxRotation: 0, color: '#8b949e', font: { size: 11 } }, grid: { color: '#21262d' } },
-        y: { position: 'left', ticks: { color: '#8b949e', font: { size: 11 }, callback: value => formatPrice(value, data.meta.currency) }, grid: { color: '#21262d' } },
-        yVol: { position: 'right', display: false, min: 0, max: Math.max(...volumes.filter(value => value > 0), 1) * 1.35, grid: { display: false }, ticks: { color: '#d29922', callback: value => formatVolume(value) } },
-        y2: { position: 'right', display: false, min: 0, max: 100, grid: { display: false }, ticks: { color: '#bc8cff', stepSize: 20 } },
-        y3: { position: 'right', display: false, grid: { display: false }, ticks: { color: '#8b949e', callback: value => Number(value).toFixed(2) } },
-      },
-    },
+  const candleSeries = chart.addCandlestickSeries({
+    upColor: '#3fb950',
+    downColor: '#f85149',
+    borderVisible: false,
+    wickUpColor: '#3fb950',
+    wickDownColor: '#f85149',
+    priceLineColor: '#58a6ff',
+  });
+
+  const volumeSeries = chart.addHistogramSeries({
+    color: 'rgba(88, 166, 255, 0.35)',
+    priceFormat: { type: 'volume' },
+    priceScaleId: '',
+    scaleMargins: { top: 0.78, bottom: 0 },
+  });
+
+  chart.priceScale('').applyOptions({
+    scaleMargins: { top: 0.78, bottom: 0 },
+    borderVisible: false,
+  });
+
+  const priceData = data.prices.map(item => ({
+    time: toBusinessDay(item.date),
+    open: item.open,
+    high: item.high,
+    low: item.low,
+    close: item.close,
+  }));
+
+  const volumeData = data.prices.map(item => ({
+    time: toBusinessDay(item.date),
+    value: item.volume,
+    color: item.close >= item.open ? 'rgba(63, 185, 80, 0.45)' : 'rgba(248, 81, 73, 0.45)',
+  }));
+
+  candleSeries.setData(priceData);
+  volumeSeries.setData(volumeData);
+
+  lightweightState.candleSeries = candleSeries;
+  lightweightState.volumeSeries = volumeSeries;
+  lightweightState.priceData = priceData;
+  lightweightState.volumeData = volumeData;
+
+  lightweightState.series.ema20 = createLineSeries(chart, '#f0883e', 2);
+  lightweightState.series.ema50 = createLineSeries(chart, '#bc8cff', 2);
+  lightweightState.series.sma200 = createLineSeries(chart, '#2ea043', 2, [6, 4]);
+  lightweightState.series.bbUpper = createLineSeries(chart, 'rgba(139, 148, 158, 0.45)', 1, [4, 4]);
+  lightweightState.series.bbMiddle = createLineSeries(chart, 'rgba(139, 148, 158, 0.8)', 1, [2, 2]);
+  lightweightState.series.bbLower = createLineSeries(chart, 'rgba(139, 148, 158, 0.45)', 1, [4, 4]);
+  lightweightState.series.volumeMA20 = chart.addLineSeries({
+    color: '#d29922',
+    lineWidth: 1,
+    priceScaleId: '',
+    lastValueVisible: false,
+    priceLineVisible: false,
+  });
+
+  lightweightState.series.ema20.setData(buildLineData(data.prices, data.indicators.movingAverages.ema20));
+  lightweightState.series.ema50.setData(buildLineData(data.prices, data.indicators.movingAverages.ema50));
+  lightweightState.series.sma200.setData(buildLineData(data.prices, data.indicators.movingAverages.sma200));
+  lightweightState.series.bbUpper.setData(buildLineData(data.prices, data.indicators.bollingerBands.upper));
+  lightweightState.series.bbMiddle.setData(buildLineData(data.prices, data.indicators.bollingerBands.middle));
+  lightweightState.series.bbLower.setData(buildLineData(data.prices, data.indicators.bollingerBands.lower));
+  lightweightState.series.volumeMA20.setData(buildLineData(data.prices, data.indicators.volumeIndicators.volumeMA20));
+
+  buildLevelSeries(chart, data.prices, data.indicators.levels || { supports: [], resistances: [] });
+  updateLightweightVisibility();
+  chart.timeScale().fitContent();
+  attachPriceTooltip(data.prices);
+
+  lightweightState.resizeHandler = () => {
+    if (!lightweightState.container || !lightweightState.chart) return;
+    const width = lightweightState.container.clientWidth;
+    const height = lightweightState.container.clientHeight || 360;
+    lightweightState.chart.applyOptions({ width, height });
+  };
+
+  window.addEventListener('resize', lightweightState.resizeHandler);
+  lightweightState.resizeHandler();
+  syncBacktestMarkers();
+  toggleRSI(Boolean(document.getElementById('toggleRSI')?.checked));
+  toggleMACD(Boolean(document.getElementById('toggleMACD')?.checked));
+}
+
+function createLineSeries(chart, color, lineWidth, lineStyle) {
+  return chart.addLineSeries({
+    color,
+    lineWidth,
+    lineStyle: lineStyle ? LightweightCharts.LineStyle.LargeDashed : LightweightCharts.LineStyle.Solid,
+    lastValueVisible: false,
+    priceLineVisible: false,
   });
 }
 
-function datasetLine(label, data, borderColor, yAxisID, order, borderWidth, borderDash = []) {
-  return { label, data, type: 'line', borderColor, backgroundColor: 'transparent', borderWidth, pointRadius: 0, pointHoverRadius: 4, tension: 0.15, yAxisID, order, borderDash };
+function buildLineData(prices, values) {
+  return prices
+    .map((item, index) => values[index] == null ? null : ({ time: toBusinessDay(item.date), value: values[index] }))
+    .filter(Boolean);
+}
+
+function buildLevelSeries(chart, prices, levels) {
+  lightweightState.levelSeries.supports = (levels.supports || []).map(level => {
+    const series = chart.addLineSeries({
+      color: 'rgba(63, 185, 80, 0.35)',
+      lineWidth: 1,
+      lineStyle: LightweightCharts.LineStyle.Dashed,
+      lastValueVisible: false,
+      priceLineVisible: false,
+    });
+    series.setData(prices.map(item => ({ time: toBusinessDay(item.date), value: level })));
+    return series;
+  });
+
+  lightweightState.levelSeries.resistances = (levels.resistances || []).map(level => {
+    const series = chart.addLineSeries({
+      color: 'rgba(248, 81, 73, 0.35)',
+      lineWidth: 1,
+      lineStyle: LightweightCharts.LineStyle.Dashed,
+      lastValueVisible: false,
+      priceLineVisible: false,
+    });
+    series.setData(prices.map(item => ({ time: toBusinessDay(item.date), value: level })));
+    return series;
+  });
+}
+
+function updateLightweightVisibility() {
+  toggleBollingerBands(lightweightState.visible.bollinger);
+  toggleMovingAverages(lightweightState.visible.movingAverages);
+  toggleSupportResistance(lightweightState.visible.supportResistance);
+}
+
+function syncBacktestMarkers() {
+  if (!lightweightState.candleSeries) return;
+  if (!lightweightState.visible.backtestMarkers || !lightweightState.markerData.length) {
+    lightweightState.candleSeries.setMarkers([]);
+    return;
+  }
+  lightweightState.candleSeries.setMarkers(lightweightState.markerData);
 }
 
 function setBacktestMarkers(backtest) {
   currentBacktestMarkers = backtest;
-  const chart = chartInstances.price;
-  if (!chart) return;
-  const markerDatasets = buildBacktestMarkerDatasets(currentPriceChartMeta.labels, currentPriceChartMeta.closes);
-  const markerIndexes = [];
-  chart.data.datasets.forEach((dataset, index) => { if (PRICE_DATASET_GROUPS.backtestMarkers.includes(dataset.label)) markerIndexes.push(index); });
-  markerIndexes.sort((a, b) => b - a).forEach(index => chart.data.datasets.splice(index, 1));
-  const volumeIndex = chart.data.datasets.findIndex(dataset => dataset.label === PRICE_LABELS.volume);
-  const insertAt = volumeIndex === -1 ? chart.data.datasets.length : volumeIndex;
-  chart.data.datasets.splice(insertAt, 0, ...markerDatasets);
-  chart.update('none');
+  const results = backtest?.results || [];
+  lightweightState.markerData = results
+    .filter(item => item.action === 'ENTER_LONG' || item.action === 'EXIT_LONG')
+    .map(item => ({
+      time: toBusinessDay(item.date),
+      position: item.action === 'ENTER_LONG' ? 'belowBar' : 'aboveBar',
+      color: item.action === 'ENTER_LONG' ? '#3fb950' : '#f85149',
+      shape: item.action === 'ENTER_LONG' ? 'arrowUp' : 'arrowDown',
+      text: item.action === 'ENTER_LONG' ? '진입' : '청산',
+    }));
+  syncBacktestMarkers();
+}
+
+function attachPriceTooltip(prices) {
+  if (!lightweightState.chart || !lightweightState.tooltip || !lightweightState.container) return;
+  const tooltip = lightweightState.tooltip;
+  const closeByDate = new Map(prices.map(item => [item.date, item]));
+
+  lightweightState.chart.subscribeCrosshairMove(param => {
+    if (!param.point || !param.time || param.point.x < 0 || param.point.y < 0) {
+      tooltip.classList.add('hidden');
+      return;
+    }
+
+    const date = businessDayToString(param.time);
+    const candle = closeByDate.get(date);
+    if (!candle) {
+      tooltip.classList.add('hidden');
+      return;
+    }
+
+    tooltip.innerHTML = `
+      <div class="lw-tooltip-date">${escapeHtml(date)}</div>
+      <div>시가 <strong>${escapeHtml(formatPrice(candle.open, lightweightState.currency))}</strong></div>
+      <div>고가 <strong>${escapeHtml(formatPrice(candle.high, lightweightState.currency))}</strong></div>
+      <div>저가 <strong>${escapeHtml(formatPrice(candle.low, lightweightState.currency))}</strong></div>
+      <div>종가 <strong>${escapeHtml(formatPrice(candle.close, lightweightState.currency))}</strong></div>
+      <div>거래량 <strong>${escapeHtml(formatVolume(candle.volume))}</strong></div>
+    `;
+
+    const width = tooltip.offsetWidth || 180;
+    const height = tooltip.offsetHeight || 110;
+    const containerRect = lightweightState.container.getBoundingClientRect();
+    const left = Math.min(Math.max(param.point.x + 14, 8), containerRect.width - width - 8);
+    const top = Math.min(Math.max(param.point.y + 14, 8), containerRect.height - height - 8);
+    tooltip.style.left = `${left}px`;
+    tooltip.style.top = `${top}px`;
+    tooltip.classList.remove('hidden');
+  });
 }
 
 function buildBacktestChart(backtest) {
   destroyChart('backtest');
   const canvas = document.getElementById('backtestChart');
-  if (!canvas || !backtest?.equityCurve?.length) return;
+  if (!canvas || !backtest?.equityCurve?.length || !window.Chart) return;
   const labels = backtest.equityCurve.map(item => item.date);
   const strategyReturns = backtest.equityCurve.map(item => item.cumulativeReturnPct);
   const buyHold = buildBuyHoldCurve(backtest.results);
@@ -191,7 +405,7 @@ function buildBacktestChart(backtest) {
     data: {
       labels,
       datasets: [
-        { label: '\uc120\ud0dd \uc804\ub7b5 \ub204\uc801 \uc218\uc775\ub960', data: strategyReturns, borderColor: '#58a6ff', backgroundColor: 'rgba(88, 166, 255, 0.12)', borderWidth: 2, pointRadius: 0, tension: 0.18, fill: false },
+        { label: '선택 전략 누적 수익률', data: strategyReturns, borderColor: '#58a6ff', backgroundColor: 'rgba(88, 166, 255, 0.12)', borderWidth: 2, pointRadius: 0, tension: 0.18, fill: false },
         { label: 'Buy & Hold', data: buyHold, borderColor: '#d29922', backgroundColor: 'rgba(210, 153, 34, 0.12)', borderWidth: 1.5, pointRadius: 0, tension: 0.18, borderDash: [6, 4], fill: false },
       ],
     },
@@ -199,7 +413,10 @@ function buildBacktestChart(backtest) {
       responsive: true,
       maintainAspectRatio: false,
       interaction: { mode: 'index', intersect: false },
-      plugins: { legend: { display: true, labels: { usePointStyle: true, boxWidth: 10 } }, tooltip: { callbacks: { label(item) { return `${item.dataset.label}: ${Number(item.raw).toFixed(2)}%`; } } } },
+      plugins: {
+        legend: { display: true, labels: { usePointStyle: true, boxWidth: 10 } },
+        tooltip: { callbacks: { label(item) { return `${item.dataset.label}: ${Number(item.raw).toFixed(2)}%`; } } },
+      },
       scales: {
         x: { ticks: { maxTicksLimit: 10, maxRotation: 0 }, grid: { color: '#21262d' } },
         y: { ticks: { callback: value => `${Number(value).toFixed(0)}%` }, grid: { color: '#21262d' } },
@@ -208,17 +425,138 @@ function buildBacktestChart(backtest) {
   });
 }
 
+function buildRSIChart(data) {
+  destroyChart('rsi');
+  const canvas = document.getElementById('rsiChart');
+  if (!canvas || !window.Chart) return;
+  const labels = data.prices.map(item => item.date);
+  const rsi = data.indicators.rsi || [];
+
+  chartInstances.rsi = new Chart(canvas.getContext('2d'), {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: 'RSI',
+          data: rsi,
+          borderColor: '#bc8cff',
+          backgroundColor: 'rgba(188, 140, 255, 0.08)',
+          borderWidth: 1.8,
+          pointRadius: 0,
+          tension: 0.18,
+        },
+        {
+          label: 'RSI 70',
+          data: labels.map(() => 70),
+          borderColor: 'rgba(248, 81, 73, 0.45)',
+          borderWidth: 1,
+          pointRadius: 0,
+          borderDash: [6, 4],
+        },
+        {
+          label: 'RSI 30',
+          data: labels.map(() => 30),
+          borderColor: 'rgba(63, 185, 80, 0.45)',
+          borderWidth: 1,
+          pointRadius: 0,
+          borderDash: [6, 4],
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label(item) { return `${item.dataset.label}: ${Number(item.raw).toFixed(2)}`; } } },
+      },
+      scales: {
+        x: { ticks: { maxTicksLimit: 8, maxRotation: 0 }, grid: { color: '#21262d' } },
+        y: {
+          min: 0,
+          max: 100,
+          ticks: { stepSize: 20 },
+          grid: { color: '#21262d' },
+        },
+      },
+    },
+  });
+}
+
+function buildMACDChart(data) {
+  destroyChart('macd');
+  const canvas = document.getElementById('macdChart');
+  if (!canvas || !window.Chart) return;
+  const labels = data.prices.map(item => item.date);
+  const macd = data.indicators.macd || { macdLine: [], signalLine: [], histogram: [] };
+  const histogramColors = (macd.histogram || []).map(value => {
+    if (value == null) return 'transparent';
+    return value >= 0 ? 'rgba(63, 185, 80, 0.5)' : 'rgba(248, 81, 73, 0.5)';
+  });
+
+  chartInstances.macd = new Chart(canvas.getContext('2d'), {
+    data: {
+      labels,
+      datasets: [
+        {
+          type: 'bar',
+          label: 'MACD 히스토그램',
+          data: macd.histogram,
+          backgroundColor: histogramColors,
+          borderColor: histogramColors,
+          borderWidth: 0,
+          order: 3,
+        },
+        {
+          type: 'line',
+          label: 'MACD',
+          data: macd.macdLine,
+          borderColor: '#58a6ff',
+          borderWidth: 1.8,
+          pointRadius: 0,
+          tension: 0.18,
+          order: 1,
+        },
+        {
+          type: 'line',
+          label: 'MACD 시그널',
+          data: macd.signalLine,
+          borderColor: '#f0883e',
+          borderWidth: 1.8,
+          pointRadius: 0,
+          tension: 0.18,
+          order: 2,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label(item) { return `${item.dataset.label}: ${Number(item.raw).toFixed(4)}`; } } },
+      },
+      scales: {
+        x: { ticks: { maxTicksLimit: 8, maxRotation: 0 }, grid: { color: '#21262d' } },
+        y: { grid: { color: '#21262d' }, ticks: { callback: value => Number(value).toFixed(2) } },
+      },
+    },
+  });
+}
+
 function buildStrategyCompareChart(comparisons) {
   destroyChart('strategyCompare');
   const canvas = document.getElementById('strategyCompareChart');
-  if (!canvas || !Array.isArray(comparisons) || !comparisons.length) return;
+  if (!canvas || !Array.isArray(comparisons) || !comparisons.length || !window.Chart) return;
 
   const labels = comparisons.map(item => formatStrategyLabel(item.strategy));
   const values = comparisons.map(item => item.summary?.cumulativeReturnPct ?? 0);
-  const colors = comparisons.map(item => {
-    if ((item.summary?.cumulativeReturnPct ?? 0) >= 0) return 'rgba(63, 185, 80, 0.65)';
-    return 'rgba(248, 81, 73, 0.65)';
-  });
+  const colors = comparisons.map(item => (item.summary?.cumulativeReturnPct ?? 0) >= 0
+    ? 'rgba(63, 185, 80, 0.65)'
+    : 'rgba(248, 81, 73, 0.65)');
 
   chartInstances.strategyCompare = new Chart(canvas.getContext('2d'), {
     type: 'bar',
@@ -240,50 +578,65 @@ function buildStrategyCompareChart(comparisons) {
       maintainAspectRatio: false,
       plugins: {
         legend: { display: false },
-        tooltip: {
-          callbacks: {
-            label(item) {
-              return `누적 수익률: ${Number(item.raw).toFixed(2)}%`;
-            },
-          },
-        },
+        tooltip: { callbacks: { label(item) { return `누적 수익률 ${Number(item.raw).toFixed(2)}%`; } } },
       },
       scales: {
-        x: {
-          grid: { display: false },
-        },
+        x: { grid: { display: false } },
         y: {
           grid: { color: '#21262d' },
-          ticks: {
-            callback: value => `${Number(value).toFixed(0)}%`,
-          },
+          ticks: { callback: value => `${Number(value).toFixed(0)}%` },
         },
       },
     },
   });
 }
 
-function buildBuyHoldCurve(results) { if (!Array.isArray(results) || !results.length) return []; const firstClose = results[0].close; if (firstClose == null || firstClose === 0) return results.map(() => null); return results.map(item => ((item.close / firstClose) - 1) * 100); }
-function buildLevelDatasets(labels, levels, prefix, color) { return (levels || []).map((level, index) => ({ label: `${prefix} ${index + 1}`, data: labels.map(() => level), borderColor: color, backgroundColor: 'transparent', borderWidth: 1, pointRadius: 0, borderDash: [6, 6], tension: 0, yAxisID: 'y', order: 1 })); }
-
-function buildBacktestMarkerDatasets(labels, closes) {
-  const markerMap = buildBacktestMarkerMap(labels, closes);
-  return [
-    { label: PRICE_LABELS.entry, data: markerMap.entries, type: 'line', borderColor: 'transparent', backgroundColor: '#3fb950', pointBackgroundColor: '#3fb950', pointBorderColor: '#0b1220', pointBorderWidth: 1.5, pointRadius: 6, pointHoverRadius: 7, pointStyle: 'triangle', pointRotation: 0, showLine: false, yAxisID: 'y', hidden: true, order: 0 },
-    { label: PRICE_LABELS.exit, data: markerMap.exits, type: 'line', borderColor: 'transparent', backgroundColor: '#f85149', pointBackgroundColor: '#f85149', pointBorderColor: '#0b1220', pointBorderWidth: 1.5, pointRadius: 6, pointHoverRadius: 7, pointStyle: 'triangle', pointRotation: 180, showLine: false, yAxisID: 'y', hidden: true, order: 0 },
-  ];
+function buildBuyHoldCurve(results) {
+  if (!Array.isArray(results) || !results.length) return [];
+  const firstClose = results[0].close;
+  if (firstClose == null || firstClose === 0) return results.map(() => null);
+  return results.map(item => ((item.close / firstClose) - 1) * 100);
 }
 
-function buildBacktestMarkerMap(labels, closes) {
-  const entries = labels.map(() => null);
-  const exits = labels.map(() => null);
-  const results = currentBacktestMarkers?.results || [];
-  if (!Array.isArray(results) || !results.length) return { entries, exits };
-  const closeByDate = new Map(labels.map((label, index) => [label, closes[index]]));
-  results.forEach(item => { const index = labels.indexOf(item.date); if (index === -1) return; const close = closeByDate.get(item.date); if (item.action === 'ENTER_LONG') entries[index] = close; if (item.action === 'EXIT_LONG') exits[index] = close; });
-  return { entries, exits };
+function toBusinessDay(dateString) {
+  const [year, month, day] = dateString.split('-').map(Number);
+  return { year, month, day };
 }
 
-function formatPrice(value, currency) { if (value == null) return 'N/A'; if (currency === 'KRW') return `KRW ${Math.round(value).toLocaleString('ko-KR')}`; return `$${Number(value).toFixed(2)}`; }
-function formatVolume(value) { if (value == null) return 'N/A'; if (value >= 1e9) return `${(value / 1e9).toFixed(2)}B`; if (value >= 1e6) return `${(value / 1e6).toFixed(2)}M`; if (value >= 1e3) return `${(value / 1e3).toFixed(1)}K`; return String(Math.round(value)); }
-function formatStrategyLabel(strategy) { return ({ balanced: '균형형', trend_following: '추세추종형', mean_reversion: '평균회귀형' })[strategy] || strategy; }
+function businessDayToString(time) {
+  if (typeof time === 'string') return time;
+  if (!time || typeof time !== 'object') return '';
+  const month = String(time.month).padStart(2, '0');
+  const day = String(time.day).padStart(2, '0');
+  return `${time.year}-${month}-${day}`;
+}
+
+function formatPrice(value, currency) {
+  if (value == null) return 'N/A';
+  if (currency === 'KRW') return `KRW ${Math.round(value).toLocaleString('ko-KR')}`;
+  return `$${Number(value).toFixed(2)}`;
+}
+
+function formatVolume(value) {
+  if (value == null) return 'N/A';
+  if (value >= 1e9) return `${(value / 1e9).toFixed(2)}B`;
+  if (value >= 1e6) return `${(value / 1e6).toFixed(2)}M`;
+  if (value >= 1e3) return `${(value / 1e3).toFixed(1)}K`;
+  return String(Math.round(value));
+}
+
+function formatStrategyLabel(strategy) {
+  return ({
+    balanced: '균형형',
+    trend_following: '추세추종형',
+    mean_reversion: '평균회귀형',
+  })[strategy] || strategy;
+}
+
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}

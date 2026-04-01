@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Stock Analyzer</title>
-  <link rel="stylesheet" href="/css/styles.css?v=20260401c" />
+  <link rel="stylesheet" href="/css/styles.css?v=20260401f" />
 </head>
 <body>
   <header class="header">
@@ -413,7 +413,26 @@
                 </div>
               </div>
               <div class="chart-wrap">
-                <canvas id="priceChart"></canvas>
+                <div id="priceChart" class="price-chart-surface"></div>
+                <div id="priceChartTooltip" class="lw-tooltip hidden"></div>
+              </div>
+            </div>
+
+            <div id="rsiChartCard" class="chart-card chart-card--compact hidden">
+              <div class="chart-header">
+                <span class="chart-title">RSI</span>
+              </div>
+              <div class="chart-wrap chart-wrap--compact">
+                <canvas id="rsiChart"></canvas>
+              </div>
+            </div>
+
+            <div id="macdChartCard" class="chart-card chart-card--compact hidden">
+              <div class="chart-header">
+                <span class="chart-title">MACD</span>
+              </div>
+              <div class="chart-wrap chart-wrap--compact">
+                <canvas id="macdChart"></canvas>
               </div>
             </div>
 
@@ -480,10 +499,10 @@
     </section>
   </main>
 
+  <script src="https://unpkg.com/lightweight-charts@4.2.2/dist/lightweight-charts.standalone.production.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
-  <script src="/js/charts.js?v=20260401c"></script>
-  <script src="/js/financials.js?v=20260401c"></script>
-  <script src="/js/app.js?v=20260401c"></script>
+  <script src="/js/charts.js?v=20260401f"></script>
+  <script src="/js/financials.js?v=20260401f"></script>
+  <script src="/js/app.js?v=20260401f"></script>
 </body>
 </html>

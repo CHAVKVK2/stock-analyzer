@@ -737,8 +737,10 @@ function setupTabs() {
 
 function setupRangeButtons() {
   document.querySelectorAll('.range-btn').forEach(button => {
-    button.addEventListener('click', () => {
+    button.addEventListener('click', event => {
+      event.preventDefault();
       if (!state.currentTicker) return;
+      if (button.dataset.range === state.currentRange) return;
       document.querySelectorAll('.range-btn').forEach(item => item.classList.remove('active'));
       button.classList.add('active');
       state.currentRange = button.dataset.range;
@@ -754,8 +756,8 @@ function getActiveRange() {
 
 async function reloadTechnical() {
   if (!state.currentTicker) return;
+  const scrollY = window.scrollY;
   showLoading(true);
-  hideMainContent();
 
   try {
     const suffix = suffixSelect.value;
@@ -777,9 +779,12 @@ async function reloadTechnical() {
     pushURL(state.currentTicker, state.currentRange);
     showLoading(false);
     showMainContent();
+    window.scrollTo({ top: scrollY, behavior: 'auto' });
   } catch (_) {
     showError('\uae30\uc220\uc801 \ubd84\uc11d \ub370\uc774\ud130\ub97c \ub2e4\uc2dc \ubd88\ub7ec\uc624\uc9c0 \ubabb\ud588\uc2b5\ub2c8\ub2e4.');
     showLoading(false);
+    showMainContent();
+    window.scrollTo({ top: scrollY, behavior: 'auto' });
   }
 }
 
