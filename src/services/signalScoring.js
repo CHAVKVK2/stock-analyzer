@@ -6,25 +6,26 @@ import {
   percentDistance,
   sumScores,
 } from './technicalUtils.js';
-import { SCORE_WEIGHTS } from './scoreWeights.js';
+import { getScoreWeights } from './scoreWeights.js';
 
-export function calculateSignalScores(prices, indicators) {
+export function calculateSignalScores(prices, indicators, options = {}) {
   const context = buildScoreContext(prices, indicators);
+  const weights = getScoreWeights(options.strategy);
 
   const buyBreakdown = {
-    trend: scoreTrendBuy(context),
-    momentum: scoreMomentumBuy(context),
-    volume: scoreVolumeBuy(context),
-    location: scoreLocationBuy(context),
-    risk: scoreRiskBuy(context),
+    trend: scoreTrendBuy(context, weights),
+    momentum: scoreMomentumBuy(context, weights),
+    volume: scoreVolumeBuy(context, weights),
+    location: scoreLocationBuy(context, weights),
+    risk: scoreRiskBuy(context, weights),
   };
 
   const sellBreakdown = {
-    trend: scoreTrendSell(context),
-    momentum: scoreMomentumSell(context),
-    volume: scoreVolumeSell(context),
-    location: scoreLocationSell(context),
-    risk: scoreRiskSell(context),
+    trend: scoreTrendSell(context, weights),
+    momentum: scoreMomentumSell(context, weights),
+    volume: scoreVolumeSell(context, weights),
+    location: scoreLocationSell(context, weights),
+    risk: scoreRiskSell(context, weights),
   };
 
   return {
@@ -36,7 +37,7 @@ export function calculateSignalScores(prices, indicators) {
 }
 
 export function buildScoreContext(prices, indicators) {
-  const volumes = prices.map(p => p.volume || 0);
+  const volumes = prices.map(price => price.volume || 0);
   const lastPrice = prices.at(-1) ?? null;
   const prevPrice = prices.at(-2) ?? null;
 
@@ -71,108 +72,108 @@ export function buildScoreContext(prices, indicators) {
   };
 }
 
-function scoreTrendBuy(ctx) {
+function scoreTrendBuy(ctx, weights) {
   let score = 0;
-  if (isNumber(ctx.ema20) && isNumber(ctx.ema50) && ctx.ema20 > ctx.ema50) score += SCORE_WEIGHTS.trend.emaCross;
-  if (isNumber(ctx.ema50) && isNumber(ctx.sma200) && ctx.ema50 > ctx.sma200) score += SCORE_WEIGHTS.trend.smaAlignment;
-  if (isNumber(ctx.lastClose) && isNumber(ctx.ema20) && ctx.lastClose > ctx.ema20) score += SCORE_WEIGHTS.trend.priceAboveEma20;
-  if (isNumber(ctx.lastClose) && isNumber(ctx.sma200) && ctx.lastClose > ctx.sma200) score += SCORE_WEIGHTS.trend.priceAboveSma200;
-  if (isNumber(ctx.adx) && ctx.adx > 25 && isNumber(ctx.plusDI) && isNumber(ctx.minusDI) && ctx.plusDI > ctx.minusDI) score += SCORE_WEIGHTS.trend.adxDirectional;
+  if (isNumber(ctx.ema20) && isNumber(ctx.ema50) && ctx.ema20 > ctx.ema50) score += weights.trend.emaCross;
+  if (isNumber(ctx.ema50) && isNumber(ctx.sma200) && ctx.ema50 > ctx.sma200) score += weights.trend.smaAlignment;
+  if (isNumber(ctx.lastClose) && isNumber(ctx.ema20) && ctx.lastClose > ctx.ema20) score += weights.trend.priceAboveEma20;
+  if (isNumber(ctx.lastClose) && isNumber(ctx.sma200) && ctx.lastClose > ctx.sma200) score += weights.trend.priceAboveSma200;
+  if (isNumber(ctx.adx) && ctx.adx > 25 && isNumber(ctx.plusDI) && isNumber(ctx.minusDI) && ctx.plusDI > ctx.minusDI) score += weights.trend.adxDirectional;
   return score;
 }
 
-function scoreMomentumBuy(ctx) {
+function scoreMomentumBuy(ctx, weights) {
   let score = 0;
-  if (crossedAbove(ctx.prevMacd, ctx.prevMacdSignal, ctx.macd, ctx.macdSignal)) score += SCORE_WEIGHTS.momentum.macdCross;
-  if (isNumber(ctx.histogram) && isNumber(ctx.prevHistogram) && ctx.histogram > ctx.prevHistogram) score += SCORE_WEIGHTS.momentum.histogramImprove;
-  if (isNumber(ctx.rsi) && ctx.rsi >= 45 && ctx.rsi <= 65) score += SCORE_WEIGHTS.momentum.rsiBalanced;
-  if (isNumber(ctx.prevRsi) && isNumber(ctx.rsi) && ctx.prevRsi <= 30 && ctx.rsi > ctx.prevRsi) score += SCORE_WEIGHTS.momentum.rsiRebound;
-  if (isNumber(ctx.rsi) && ctx.rsi > 75) score += SCORE_WEIGHTS.momentum.rsiOverheatedPenalty;
+  if (crossedAbove(ctx.prevMacd, ctx.prevMacdSignal, ctx.macd, ctx.macdSignal)) score += weights.momentum.macdCross;
+  if (isNumber(ctx.histogram) && isNumber(ctx.prevHistogram) && ctx.histogram > ctx.prevHistogram) score += weights.momentum.histogramImprove;
+  if (isNumber(ctx.rsi) && ctx.rsi >= 45 && ctx.rsi <= 65) score += weights.momentum.rsiBalanced;
+  if (isNumber(ctx.prevRsi) && isNumber(ctx.rsi) && ctx.prevRsi <= 30 && ctx.rsi > ctx.prevRsi) score += weights.momentum.rsiRebound;
+  if (isNumber(ctx.rsi) && ctx.rsi > 75) score += weights.momentum.rsiOverheatedPenalty;
   return score;
 }
 
-function scoreVolumeBuy(ctx) {
+function scoreVolumeBuy(ctx, weights) {
   let score = 0;
-  if (isNumber(ctx.volumeRatio) && ctx.volumeRatio >= 1.5) score += SCORE_WEIGHTS.volume.surge;
-  if (isNumber(ctx.lastClose) && isNumber(ctx.prevClose) && ctx.lastClose > ctx.prevClose && isNumber(ctx.volumeRatio) && ctx.volumeRatio >= 1.2) score += SCORE_WEIGHTS.volume.directionalSupport;
-  if (isNumber(ctx.obv) && isNumber(ctx.prevObv) && ctx.obv > ctx.prevObv) score += SCORE_WEIGHTS.volume.obvConfirm;
-  if (isNumber(ctx.nearestResistance) && isNumber(ctx.lastClose) && ctx.lastClose > ctx.nearestResistance && isNumber(ctx.volumeRatio) && ctx.volumeRatio >= 1.5) score += SCORE_WEIGHTS.volume.breakoutBonus;
-  if (isNumber(ctx.volumeRatio) && ctx.volumeRatio < 1) score += SCORE_WEIGHTS.volume.lowVolumePenalty;
+  if (isNumber(ctx.volumeRatio) && ctx.volumeRatio >= 1.5) score += weights.volume.surge;
+  if (isNumber(ctx.lastClose) && isNumber(ctx.prevClose) && ctx.lastClose > ctx.prevClose && isNumber(ctx.volumeRatio) && ctx.volumeRatio >= 1.2) score += weights.volume.directionalSupport;
+  if (isNumber(ctx.obv) && isNumber(ctx.prevObv) && ctx.obv > ctx.prevObv) score += weights.volume.obvConfirm;
+  if (isNumber(ctx.nearestResistance) && isNumber(ctx.lastClose) && ctx.lastClose > ctx.nearestResistance && isNumber(ctx.volumeRatio) && ctx.volumeRatio >= 1.5) score += weights.volume.breakoutBonus;
+  if (isNumber(ctx.volumeRatio) && ctx.volumeRatio < 1) score += weights.volume.lowVolumePenalty;
   return score;
 }
 
-function scoreLocationBuy(ctx) {
+function scoreLocationBuy(ctx, weights) {
   let score = 0;
-  if (isNumber(ctx.nearestSupport) && isNumber(ctx.lastClose) && percentDistance(ctx.lastClose, ctx.nearestSupport) <= 0.03 && ctx.lastClose >= ctx.nearestSupport) score += SCORE_WEIGHTS.location.supportBounce;
-  if (isNumber(ctx.nearestResistance) && isNumber(ctx.lastClose) && ctx.lastClose > ctx.nearestResistance) score += SCORE_WEIGHTS.location.resistanceBreakout;
-  if (isNumber(ctx.bbMiddle) && isNumber(ctx.lastClose) && ctx.lastClose > ctx.bbMiddle) score += SCORE_WEIGHTS.location.aboveBbMiddle;
-  if (isNumber(ctx.bbUpper) && isNumber(ctx.lastClose) && ctx.lastClose > ctx.bbUpper) score += SCORE_WEIGHTS.location.aboveBbUpperPenalty;
-  if (isNumber(ctx.nearestResistance) && isNumber(ctx.lastClose) && percentDistance(ctx.nearestResistance, ctx.lastClose) <= 0.02 && ctx.lastClose < ctx.nearestResistance) score += SCORE_WEIGHTS.location.nearResistancePenalty;
+  if (isNumber(ctx.nearestSupport) && isNumber(ctx.lastClose) && percentDistance(ctx.lastClose, ctx.nearestSupport) <= 0.03 && ctx.lastClose >= ctx.nearestSupport) score += weights.location.supportBounce;
+  if (isNumber(ctx.nearestResistance) && isNumber(ctx.lastClose) && ctx.lastClose > ctx.nearestResistance) score += weights.location.resistanceBreakout;
+  if (isNumber(ctx.bbMiddle) && isNumber(ctx.lastClose) && ctx.lastClose > ctx.bbMiddle) score += weights.location.aboveBbMiddle;
+  if (isNumber(ctx.bbUpper) && isNumber(ctx.lastClose) && ctx.lastClose > ctx.bbUpper) score += weights.location.aboveBbUpperPenalty;
+  if (isNumber(ctx.nearestResistance) && isNumber(ctx.lastClose) && percentDistance(ctx.nearestResistance, ctx.lastClose) <= 0.02 && ctx.lastClose < ctx.nearestResistance) score += weights.location.nearResistancePenalty;
   return score;
 }
 
-function scoreRiskBuy(ctx) {
+function scoreRiskBuy(ctx, weights) {
   let score = 0;
   if (isNumber(ctx.atr) && isNumber(ctx.lastClose)) {
     const atrRatio = ctx.atr / ctx.lastClose;
-    if (atrRatio <= 0.03) score += SCORE_WEIGHTS.risk.lowAtrBonus;
-    else if (atrRatio >= 0.06) score += SCORE_WEIGHTS.risk.highAtrPenalty;
+    if (atrRatio <= 0.03) score += weights.risk.lowAtrBonus;
+    else if (atrRatio >= 0.06) score += weights.risk.highAtrPenalty;
   }
   if (isNumber(ctx.nearestSupport) && isNumber(ctx.nearestResistance) && isNumber(ctx.lastClose)) {
     const risk = Math.max(ctx.lastClose - ctx.nearestSupport, 0);
     const reward = Math.max(ctx.nearestResistance - ctx.lastClose, 0);
-    if (risk > 0 && reward / risk >= 2) score += SCORE_WEIGHTS.risk.rewardRiskBonus;
+    if (risk > 0 && reward / risk >= 2) score += weights.risk.rewardRiskBonus;
   }
   return score;
 }
 
-function scoreTrendSell(ctx) {
+function scoreTrendSell(ctx, weights) {
   let score = 0;
-  if (isNumber(ctx.ema20) && isNumber(ctx.ema50) && ctx.ema20 < ctx.ema50) score += SCORE_WEIGHTS.trend.emaCross;
-  if (isNumber(ctx.ema50) && isNumber(ctx.sma200) && ctx.ema50 < ctx.sma200) score += SCORE_WEIGHTS.trend.smaAlignment;
-  if (isNumber(ctx.lastClose) && isNumber(ctx.ema20) && ctx.lastClose < ctx.ema20) score += SCORE_WEIGHTS.trend.priceAboveEma20;
-  if (isNumber(ctx.lastClose) && isNumber(ctx.sma200) && ctx.lastClose < ctx.sma200) score += SCORE_WEIGHTS.trend.priceAboveSma200;
-  if (isNumber(ctx.adx) && ctx.adx > 25 && isNumber(ctx.minusDI) && isNumber(ctx.plusDI) && ctx.minusDI > ctx.plusDI) score += SCORE_WEIGHTS.trend.adxDirectional;
+  if (isNumber(ctx.ema20) && isNumber(ctx.ema50) && ctx.ema20 < ctx.ema50) score += weights.trend.emaCross;
+  if (isNumber(ctx.ema50) && isNumber(ctx.sma200) && ctx.ema50 < ctx.sma200) score += weights.trend.smaAlignment;
+  if (isNumber(ctx.lastClose) && isNumber(ctx.ema20) && ctx.lastClose < ctx.ema20) score += weights.trend.priceAboveEma20;
+  if (isNumber(ctx.lastClose) && isNumber(ctx.sma200) && ctx.lastClose < ctx.sma200) score += weights.trend.priceAboveSma200;
+  if (isNumber(ctx.adx) && ctx.adx > 25 && isNumber(ctx.minusDI) && isNumber(ctx.plusDI) && ctx.minusDI > ctx.plusDI) score += weights.trend.adxDirectional;
   return score;
 }
 
-function scoreMomentumSell(ctx) {
+function scoreMomentumSell(ctx, weights) {
   let score = 0;
-  if (crossedBelow(ctx.prevMacd, ctx.prevMacdSignal, ctx.macd, ctx.macdSignal)) score += SCORE_WEIGHTS.momentum.macdCross;
-  if (isNumber(ctx.histogram) && isNumber(ctx.prevHistogram) && ctx.histogram < ctx.prevHistogram) score += SCORE_WEIGHTS.momentum.histogramImprove;
-  if (isNumber(ctx.rsi) && ctx.rsi <= 35) score += SCORE_WEIGHTS.momentum.rsiBalanced;
-  if (isNumber(ctx.prevRsi) && isNumber(ctx.rsi) && ctx.prevRsi >= 70 && ctx.rsi < ctx.prevRsi) score += SCORE_WEIGHTS.momentum.rsiRebound;
-  if (isNumber(ctx.rsi) && ctx.rsi < 25) score += SCORE_WEIGHTS.momentum.rsiOversoldPenalty;
+  if (crossedBelow(ctx.prevMacd, ctx.prevMacdSignal, ctx.macd, ctx.macdSignal)) score += weights.momentum.macdCross;
+  if (isNumber(ctx.histogram) && isNumber(ctx.prevHistogram) && ctx.histogram < ctx.prevHistogram) score += weights.momentum.histogramImprove;
+  if (isNumber(ctx.rsi) && ctx.rsi <= 35) score += weights.momentum.rsiBalanced;
+  if (isNumber(ctx.prevRsi) && isNumber(ctx.rsi) && ctx.prevRsi >= 70 && ctx.rsi < ctx.prevRsi) score += weights.momentum.rsiRebound;
+  if (isNumber(ctx.rsi) && ctx.rsi < 25) score += weights.momentum.rsiOversoldPenalty;
   return score;
 }
 
-function scoreVolumeSell(ctx) {
+function scoreVolumeSell(ctx, weights) {
   let score = 0;
-  if (isNumber(ctx.volumeRatio) && ctx.volumeRatio >= 1.5 && isNumber(ctx.lastClose) && isNumber(ctx.prevClose) && ctx.lastClose < ctx.prevClose) score += SCORE_WEIGHTS.volume.surge;
-  if (isNumber(ctx.nearestSupport) && isNumber(ctx.lastClose) && ctx.lastClose < ctx.nearestSupport && isNumber(ctx.volumeRatio) && ctx.volumeRatio >= 1.2) score += SCORE_WEIGHTS.volume.directionalBreakdownSupport;
-  if (isNumber(ctx.obv) && isNumber(ctx.prevObv) && ctx.obv < ctx.prevObv) score += SCORE_WEIGHTS.volume.obvConfirmSell;
-  if (isNumber(ctx.volumeRatio) && ctx.volumeRatio < 1) score += SCORE_WEIGHTS.volume.lowVolumePenalty;
+  if (isNumber(ctx.volumeRatio) && ctx.volumeRatio >= 1.5 && isNumber(ctx.lastClose) && isNumber(ctx.prevClose) && ctx.lastClose < ctx.prevClose) score += weights.volume.surge;
+  if (isNumber(ctx.nearestSupport) && isNumber(ctx.lastClose) && ctx.lastClose < ctx.nearestSupport && isNumber(ctx.volumeRatio) && ctx.volumeRatio >= 1.2) score += weights.volume.directionalBreakdownSupport;
+  if (isNumber(ctx.obv) && isNumber(ctx.prevObv) && ctx.obv < ctx.prevObv) score += weights.volume.obvConfirmSell;
+  if (isNumber(ctx.volumeRatio) && ctx.volumeRatio < 1) score += weights.volume.lowVolumePenalty;
   return score;
 }
 
-function scoreLocationSell(ctx) {
+function scoreLocationSell(ctx, weights) {
   let score = 0;
-  if (isNumber(ctx.nearestResistance) && isNumber(ctx.lastClose) && percentDistance(ctx.nearestResistance, ctx.lastClose) <= 0.02 && ctx.lastClose <= ctx.nearestResistance) score += SCORE_WEIGHTS.location.nearResistanceReject;
-  if (isNumber(ctx.nearestSupport) && isNumber(ctx.lastClose) && ctx.lastClose < ctx.nearestSupport) score += SCORE_WEIGHTS.location.belowSupportBreak;
-  if (isNumber(ctx.bbLower) && isNumber(ctx.lastClose) && ctx.lastClose < ctx.bbLower) score += SCORE_WEIGHTS.location.belowBbLower;
+  if (isNumber(ctx.nearestResistance) && isNumber(ctx.lastClose) && percentDistance(ctx.nearestResistance, ctx.lastClose) <= 0.02 && ctx.lastClose <= ctx.nearestResistance) score += weights.location.nearResistanceReject;
+  if (isNumber(ctx.nearestSupport) && isNumber(ctx.lastClose) && ctx.lastClose < ctx.nearestSupport) score += weights.location.belowSupportBreak;
+  if (isNumber(ctx.bbLower) && isNumber(ctx.lastClose) && ctx.lastClose < ctx.bbLower) score += weights.location.belowBbLower;
   return score;
 }
 
-function scoreRiskSell(ctx) {
+function scoreRiskSell(ctx, weights) {
   let score = 0;
   if (isNumber(ctx.atr) && isNumber(ctx.lastClose)) {
     const atrRatio = ctx.atr / ctx.lastClose;
-    if (atrRatio >= 0.04) score += SCORE_WEIGHTS.risk.highAtrSellBonus;
+    if (atrRatio >= 0.04) score += weights.risk.highAtrSellBonus;
   }
   if (isNumber(ctx.nearestSupport) && isNumber(ctx.nearestResistance) && isNumber(ctx.lastClose)) {
     const risk = Math.max(ctx.nearestResistance - ctx.lastClose, 0);
     const reward = Math.max(ctx.lastClose - ctx.nearestSupport, 0);
-    if (risk > 0 && reward / risk >= 2) score += SCORE_WEIGHTS.risk.rewardRiskBonus;
+    if (risk > 0 && reward / risk >= 2) score += weights.risk.rewardRiskBonus;
   }
   return score;
 }

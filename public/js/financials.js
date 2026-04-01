@@ -29,8 +29,8 @@ const BALANCE_FIELDS = [
 
 const CASHFLOW_FIELDS = [
   { key: 'operatingCashFlow', label: '영업활동 현금흐름' },
-  { key: 'capitalExpenditures', label: '자본지출 (CapEx)' },
-  { key: 'freeCashFlow', label: '잉여현금흐름 (FCF)' },
+  { key: 'capitalExpenditures', label: '자본지출(CapEx)' },
+  { key: 'freeCashFlow', label: '잉여현금흐름(FCF)' },
   { key: 'totalCashFromInvestingActivities', label: '투자활동 현금흐름' },
   { key: 'totalCashFromFinancingActivities', label: '재무활동 현금흐름' },
   { key: 'dividendsPaid', label: '배당금 지급' },

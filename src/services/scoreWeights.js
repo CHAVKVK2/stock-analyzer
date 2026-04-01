@@ -1,4 +1,4 @@
-export const SCORE_WEIGHTS = {
+const BASE_SCORE_WEIGHTS = {
   trend: {
     emaCross: 8,
     smaAlignment: 8,
@@ -40,3 +40,86 @@ export const SCORE_WEIGHTS = {
     rewardRiskBonus: 5,
   },
 };
+
+export const SUPPORTED_STRATEGIES = ['balanced', 'trend_following', 'mean_reversion'];
+
+const STRATEGY_OVERRIDES = {
+  balanced: {},
+  trend_following: {
+    trend: {
+      emaCross: 10,
+      smaAlignment: 10,
+      priceAboveEma20: 6,
+      priceAboveSma200: 6,
+      adxDirectional: 6,
+    },
+    momentum: {
+      rsiBalanced: 4,
+      rsiRebound: 5,
+    },
+    volume: {
+      surge: 10,
+      directionalSupport: 6,
+      breakoutBonus: 5,
+    },
+    location: {
+      supportBounce: 4,
+      resistanceBreakout: 10,
+      nearResistancePenalty: -4,
+    },
+  },
+  mean_reversion: {
+    trend: {
+      emaCross: 5,
+      smaAlignment: 5,
+      priceAboveEma20: 3,
+      priceAboveSma200: 4,
+      adxDirectional: 2,
+    },
+    momentum: {
+      macdCross: 6,
+      histogramImprove: 3,
+      rsiBalanced: 4,
+      rsiRebound: 10,
+      rsiOverheatedPenalty: -8,
+      rsiOversoldPenalty: -8,
+    },
+    volume: {
+      surge: 5,
+      directionalSupport: 3,
+      breakoutBonus: 1,
+    },
+    location: {
+      supportBounce: 10,
+      resistanceBreakout: 4,
+      aboveBbMiddle: 2,
+      aboveBbUpperPenalty: -5,
+      nearResistancePenalty: -8,
+      nearResistanceReject: 7,
+      belowSupportBreak: 6,
+      belowBbLower: 5,
+    },
+    risk: {
+      lowAtrBonus: 4,
+      highAtrPenalty: -5,
+      highAtrSellBonus: 4,
+    },
+  },
+};
+
+export function getScoreWeights(strategy = 'balanced') {
+  const normalized = SUPPORTED_STRATEGIES.includes(strategy) ? strategy : 'balanced';
+  const overrides = STRATEGY_OVERRIDES[normalized] || {};
+  const merged = structuredClone(BASE_SCORE_WEIGHTS);
+
+  for (const [section, values] of Object.entries(overrides)) {
+    merged[section] = {
+      ...merged[section],
+      ...values,
+    };
+  }
+
+  return merged;
+}
+
+export const SCORE_WEIGHTS = getScoreWeights('balanced');

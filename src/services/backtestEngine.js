@@ -1,6 +1,8 @@
 import { diffDays, isNumber, normalizeDateString, rnd } from './technicalUtils.js';
 import { findTargetIndexOnOrBefore } from './indicators.js';
 
+const FORWARD_HORIZONS = [5, 10, 20];
+
 export function calculateBacktestRange(prices, startDate, endDate, dependencies) {
   if (!Array.isArray(prices) || prices.length === 0) {
     throw new Error('가격 데이터가 없습니다.');
@@ -14,17 +16,17 @@ export function calculateBacktestRange(prices, startDate, endDate, dependencies)
   }
 
   if (start > end) {
-    throw new Error('시작일이 종료일보다 늦을 수 없습니다.');
+    throw new Error('시작일은 종료일보다 늦을 수 없습니다.');
   }
 
   const startIndex = prices.findIndex(price => price?.date && price.date >= start);
   const endIndex = findTargetIndexOnOrBefore(prices, end);
 
   if (startIndex === -1 || endIndex === -1 || startIndex > endIndex) {
-    throw new Error('선택한 기간에 해당하는 가격 데이터가 없습니다.');
+    throw new Error('선택한 기간에 해당하는 가격 데이터를 찾을 수 없습니다.');
   }
 
-  const { analyzePrices, buildIndicatorSnapshot } = dependencies;
+  const { analyzePrices, buildIndicatorSnapshot, analysisOptions = {} } = dependencies;
   const results = [];
   const trades = [];
   let equity = 1;
@@ -42,7 +44,7 @@ export function calculateBacktestRange(prices, startDate, endDate, dependencies)
     }
 
     const slicedPrices = prices.slice(0, i + 1);
-    const analysis = analyzePrices(slicedPrices);
+    const analysis = analyzePrices(slicedPrices, analysisOptions);
     const snapshot = buildIndicatorSnapshot(slicedPrices, analysis.indicators);
     const rawSignal = analysis.signalSummary.signal;
     const signal = rawSignal === 'NEUTRAL' ? 'HOLD' : rawSignal;
@@ -55,17 +57,9 @@ export function calculateBacktestRange(prices, startDate, endDate, dependencies)
       };
       action = 'ENTER_LONG';
     } else if (position && signal === 'SELL' && isNumber(currentPrice?.close)) {
-      const tradeReturn = currentPrice.close / position.entryPrice - 1;
-      trades.push({
-        entryDate: position.entryDate,
-        exitDate: currentPrice.date,
-        entryPrice: rnd(position.entryPrice),
-        exitPrice: rnd(currentPrice.close),
-        returnPct: rnd(tradeReturn * 100),
-        holdingDays: diffDays(position.entryDate, currentPrice.date),
-        outcome: tradeReturn > 0 ? 'WIN' : tradeReturn < 0 ? 'LOSS' : 'FLAT',
-      });
-      if (tradeReturn > 0) wins += 1;
+      const closedTrade = buildTrade(position, currentPrice);
+      trades.push(closedTrade);
+      if (closedTrade.outcome === 'WIN') wins += 1;
       position = null;
       action = 'EXIT_LONG';
     }
@@ -92,18 +86,9 @@ export function calculateBacktestRange(prices, startDate, endDate, dependencies)
 
   if (position) {
     const lastPrice = prices[endIndex];
-    const tradeReturn = lastPrice.close / position.entryPrice - 1;
-    trades.push({
-      entryDate: position.entryDate,
-      exitDate: lastPrice.date,
-      entryPrice: rnd(position.entryPrice),
-      exitPrice: rnd(lastPrice.close),
-      returnPct: rnd(tradeReturn * 100),
-      holdingDays: diffDays(position.entryDate, lastPrice.date),
-      outcome: tradeReturn > 0 ? 'WIN' : tradeReturn < 0 ? 'LOSS' : 'FLAT',
-      forcedExit: true,
-    });
-    if (tradeReturn > 0) wins += 1;
+    const closedTrade = buildTrade(position, lastPrice, true);
+    trades.push(closedTrade);
+    if (closedTrade.outcome === 'WIN') wins += 1;
   }
 
   const periodPrices = prices.slice(startIndex, endIndex + 1);
@@ -128,6 +113,7 @@ export function calculateBacktestRange(prices, startDate, endDate, dependencies)
       buyHoldReturnPct,
       finalEquity: rnd(equity),
     },
+    statistics: buildBacktestStatistics(results, trades, prices, endIndex),
     equityCurve: results.map(item => ({
       date: item.date,
       equity: item.equity,
@@ -137,4 +123,87 @@ export function calculateBacktestRange(prices, startDate, endDate, dependencies)
     trades,
     results,
   };
+}
+
+function buildTrade(position, currentPrice, forcedExit = false) {
+  const tradeReturn = currentPrice.close / position.entryPrice - 1;
+
+  return {
+    entryDate: position.entryDate,
+    exitDate: currentPrice.date,
+    entryPrice: rnd(position.entryPrice),
+    exitPrice: rnd(currentPrice.close),
+    returnPct: rnd(tradeReturn * 100),
+    holdingDays: diffDays(position.entryDate, currentPrice.date),
+    outcome: tradeReturn > 0 ? 'WIN' : tradeReturn < 0 ? 'LOSS' : 'FLAT',
+    forcedExit,
+  };
+}
+
+function buildBacktestStatistics(results, trades, allPrices, endIndex) {
+  const signalCounts = { BUY: 0, SELL: 0, HOLD: 0 };
+  const actionCounts = { ENTER_LONG: 0, EXIT_LONG: 0, HOLD: 0 };
+
+  results.forEach(result => {
+    signalCounts[result.signal] = (signalCounts[result.signal] || 0) + 1;
+    actionCounts[result.action] = (actionCounts[result.action] || 0) + 1;
+  });
+
+  const winningTrades = trades.filter(trade => trade.outcome === 'WIN');
+  const losingTrades = trades.filter(trade => trade.outcome === 'LOSS');
+  const avgTradeReturnPct = average(trades.map(trade => trade.returnPct));
+  const avgHoldingDays = average(trades.map(trade => trade.holdingDays));
+  const avgWinReturnPct = average(winningTrades.map(trade => trade.returnPct));
+  const avgLossReturnPct = average(losingTrades.map(trade => trade.returnPct));
+
+  return {
+    signalCounts,
+    actionCounts,
+    tradeStats: {
+      avgTradeReturnPct,
+      avgHoldingDays,
+      avgWinReturnPct,
+      avgLossReturnPct,
+    },
+    setupStats: {
+      buySignals: buildForwardReturnStats(results, allPrices, endIndex, 'BUY'),
+      sellSignals: buildForwardReturnStats(results, allPrices, endIndex, 'SELL'),
+    },
+  };
+}
+
+function buildForwardReturnStats(results, allPrices, endIndex, signalType) {
+  const byDate = new Map(allPrices.map((price, index) => [price.date, { ...price, index }]));
+  const signalRows = results.filter(result => result.signal === signalType);
+  const horizons = {};
+
+  for (const horizon of FORWARD_HORIZONS) {
+    const returns = [];
+
+    for (const row of signalRows) {
+      const current = byDate.get(row.date);
+      if (!current || current.index + horizon > endIndex) continue;
+
+      const future = allPrices[current.index + horizon];
+      if (!isNumber(current.close) || !isNumber(future?.close) || current.close === 0) continue;
+
+      const rawReturn = (future.close / current.close - 1) * 100;
+      const normalizedReturn = signalType === 'BUY' ? rawReturn : -rawReturn;
+      returns.push(normalizedReturn);
+    }
+
+    horizons[`${horizon}d`] = {
+      count: returns.length,
+      winRatePct: returns.length ? rnd((returns.filter(value => value > 0).length / returns.length) * 100) : null,
+      avgReturnPct: returns.length ? rnd(returns.reduce((sum, value) => sum + value, 0) / returns.length) : null,
+    };
+  }
+
+  return horizons;
+}
+
+function average(values) {
+  const filtered = values.filter(isNumber);
+  if (!filtered.length) return null;
+  return rnd(filtered.reduce((sum, value) => sum + value, 0) / filtered.length);
 }

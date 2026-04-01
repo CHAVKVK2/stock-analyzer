@@ -12,24 +12,30 @@ export function buildSignalSummary(context, marketState, signalScores) {
   };
 }
 
+export function determineSignal(buyScore, sellScore) {
+  const gap = Math.abs(buyScore - sellScore);
+  if (gap < 10) return 'NEUTRAL';
+  return buyScore > sellScore ? 'BUY' : 'SELL';
+}
+
 function buildReasons(ctx, marketState, signal) {
   if (signal === 'NEUTRAL') {
-    return ['신호가 혼재돼서 지금은 바로 진입하기보다 관찰 종목으로 보는 편이 좋습니다.'];
+    return ['신호가 엇갈려서 지금은 성급한 진입보다 관찰이 더 적절합니다.'];
   }
 
   const reasons = [];
 
   if (signal === 'BUY') {
-    if (marketState.trend === 'uptrend') reasons.push('이동평균선 배열이 상승 추세를 지지하고 있습니다.');
+    if (marketState.trend === 'uptrend') reasons.push('이동평균선 정배열이 유지되며 상승 추세가 이어지고 있습니다.');
     if (crossedAbove(ctx.prevMacd, ctx.prevMacdSignal, ctx.macd, ctx.macdSignal)) reasons.push('MACD가 최근 골든크로스를 만들었습니다.');
     if (isNumber(ctx.volumeRatio) && ctx.volumeRatio >= 1.5) reasons.push(`거래량이 20일 평균 대비 ${ctx.volumeRatio.toFixed(2)}배로 늘었습니다.`);
-    if (isNumber(ctx.adx) && ctx.adx > 25) reasons.push('ADX가 추세 강도가 충분하다는 점을 보여줍니다.');
+    if (isNumber(ctx.adx) && ctx.adx > 25) reasons.push('ADX가 추세 강도가 충분하다는 신호를 주고 있습니다.');
     if (isNumber(ctx.nearestSupport) && isNumber(ctx.lastClose) && percentDistance(ctx.lastClose, ctx.nearestSupport) <= 0.03) reasons.push('가격이 최근 지지 구간 근처에서 버티고 있습니다.');
   } else {
-    if (marketState.trend === 'downtrend') reasons.push('이동평균선 배열이 하락 추세를 지지하고 있습니다.');
+    if (marketState.trend === 'downtrend') reasons.push('이동평균선 역배열이 유지되며 하락 추세가 이어지고 있습니다.');
     if (crossedBelow(ctx.prevMacd, ctx.prevMacdSignal, ctx.macd, ctx.macdSignal)) reasons.push('MACD가 최근 데드크로스를 만들었습니다.');
-    if (isNumber(ctx.volumeRatio) && ctx.volumeRatio >= 1.5) reasons.push(`하락 흐름에 평균 대비 ${ctx.volumeRatio.toFixed(2)}배의 거래량이 실렸습니다.`);
-    if (isNumber(ctx.adx) && ctx.adx > 25) reasons.push('ADX가 하락 추세 강도가 충분하다는 점을 보여줍니다.');
+    if (isNumber(ctx.volumeRatio) && ctx.volumeRatio >= 1.5) reasons.push(`하락 구간에서 거래량이 평균 대비 ${ctx.volumeRatio.toFixed(2)}배로 늘었습니다.`);
+    if (isNumber(ctx.adx) && ctx.adx > 25) reasons.push('ADX가 하락 추세 강도가 충분하다는 신호를 주고 있습니다.');
     if (isNumber(ctx.nearestSupport) && isNumber(ctx.lastClose) && ctx.lastClose < ctx.nearestSupport) reasons.push('가격이 가까운 지지선을 이탈했습니다.');
   }
 
@@ -46,29 +52,23 @@ function buildRisks(ctx, marketState, signal) {
 
   if (signal === 'BUY') {
     if (isNumber(ctx.nearestResistance) && isNumber(ctx.lastClose) && percentDistance(ctx.nearestResistance, ctx.lastClose) <= 0.03 && ctx.lastClose < ctx.nearestResistance) {
-      risks.push('가격이 아직 최근 저항 구간에 가까워 부담이 남아 있습니다.');
+      risks.push('가격이 아직 최근 저항 구간과 가까워 추가 상승이 막힐 수 있습니다.');
     }
-    if (isNumber(ctx.rsi) && ctx.rsi > 70) risks.push('RSI가 과열권에 가까워 추가 상승 여력이 줄었을 수 있습니다.');
+    if (isNumber(ctx.rsi) && ctx.rsi > 70) risks.push('RSI가 과열권에 가까워 추격 매수는 부담이 있을 수 있습니다.');
   } else if (signal === 'SELL') {
     if (isNumber(ctx.nearestSupport) && isNumber(ctx.lastClose) && percentDistance(ctx.lastClose, ctx.nearestSupport) <= 0.03 && ctx.lastClose > ctx.nearestSupport) {
-      risks.push('가격이 지지선에 가까워 반등 가능성이 남아 있습니다.');
+      risks.push('가격이 지지선과 가까워 단기 반등 가능성을 열어둬야 합니다.');
     }
-    if (isNumber(ctx.rsi) && ctx.rsi < 30) risks.push('RSI가 과매도권에 가까워 되돌림 반등이 나올 수 있습니다.');
-  } else {
-    if (marketState.trendStrength === 'weak') risks.push('추세 강도가 약해서 가짜 신호가 나올 가능성이 있습니다.');
+    if (isNumber(ctx.rsi) && ctx.rsi < 30) risks.push('RSI가 과매도권에 가까워 기술적 반등이 나올 수 있습니다.');
+  } else if (marketState.trendStrength === 'weak') {
+    risks.push('추세 강도가 약해서 신호가 자주 뒤집힐 수 있습니다.');
   }
 
   if (!risks.length) {
-    risks.push('일반적인 시장 변동 외에 두드러진 기술적 리스크는 크지 않습니다.');
+    risks.push('현재 확인된 추가 리스크는 크지 않지만 시장 변동성은 계속 점검할 필요가 있습니다.');
   }
 
   return risks.slice(0, 3);
-}
-
-function determineSignal(buyScore, sellScore) {
-  const gap = Math.abs(buyScore - sellScore);
-  if (gap < 10) return 'NEUTRAL';
-  return buyScore > sellScore ? 'BUY' : 'SELL';
 }
 
 function determineStrength(score, signal) {

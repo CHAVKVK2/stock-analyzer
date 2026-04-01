@@ -89,6 +89,29 @@ body {
   margin: 0 auto;
 }
 
+.strategy-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+  padding-left: 6px;
+}
+
+.strategy-label {
+  color: var(--text-secondary);
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+.strategy-select {
+  min-width: 180px;
+  padding: 9px 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: rgba(15, 23, 42, 0.9);
+  color: var(--text-primary);
+}
+
 .search-bar {
   display: flex;
   gap: 0;
@@ -722,6 +745,48 @@ body {
   margin-top: 16px;
 }
 
+.backtest-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.backtest-setup-panel {
+  margin-top: 16px;
+}
+
+.setup-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.setup-stat-card {
+  padding: 14px;
+  border-radius: 14px;
+  background: rgba(148, 163, 184, 0.06);
+}
+
+.setup-stat-title {
+  margin-bottom: 10px;
+  color: var(--text-primary);
+  font-weight: 700;
+}
+
+.setup-stat-lines {
+  display: grid;
+  gap: 8px;
+}
+
+.setup-stat-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--text-secondary);
+}
+
 .fear-greed-card {
   margin-top: 18px;
   padding: 22px 24px;
@@ -1051,9 +1116,14 @@ body {
   .historical-signal-summary,
   .historical-indicator-grid,
   .backtest-summary,
+  .backtest-stat-grid,
   .breakdown-grid,
   .rules-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .setup-stats-grid {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
@@ -1090,9 +1160,20 @@ body {
   .historical-signal-summary,
   .historical-indicator-grid,
   .backtest-summary,
+  .backtest-stat-grid,
   .breakdown-grid,
   .rules-grid {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .strategy-row {
+    flex-direction: column;
+    align-items: flex-start;
+    padding-left: 0;
+  }
+
+  .strategy-select {
+    width: 100%;
   }
 
   .stock-price {

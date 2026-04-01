@@ -4,10 +4,10 @@ import { buildScoreContext, calculateSignalScores } from './signalScoring.js';
 import { buildSignalSummary } from './signalSummary.js';
 import { avg, isNumber } from './technicalUtils.js';
 
-export function calculateTechnicalAnalysis(prices) {
+export function calculateTechnicalAnalysis(prices, options = {}) {
   const indicators = calculateIndicators(prices);
   const marketState = evaluateMarketState(prices, indicators);
-  const signalScores = calculateSignalScores(prices, indicators);
+  const signalScores = calculateSignalScores(prices, indicators, options);
   const context = buildScoreContext(prices, indicators);
   const signalSummary = buildSignalSummary(context, marketState, signalScores);
 
@@ -16,21 +16,22 @@ export function calculateTechnicalAnalysis(prices) {
     marketState,
     signalScores,
     signalSummary,
+    strategy: options.strategy || 'balanced',
   };
 }
 
-export function calculateTechnicalAnalysisForDate(prices, requestedDate) {
+export function calculateTechnicalAnalysisForDate(prices, requestedDate, options = {}) {
   if (!Array.isArray(prices) || prices.length === 0) {
     throw new Error('가격 데이터가 없습니다.');
   }
 
   const targetIndex = findTargetIndexOnOrBefore(prices, requestedDate);
   if (targetIndex === -1) {
-    throw new Error('선택한 날짜 이전의 가격 데이터가 없습니다.');
+    throw new Error('선택한 날짜 이전의 가격 데이터를 찾을 수 없습니다.');
   }
 
   const slicedPrices = prices.slice(0, targetIndex + 1);
-  const analysis = calculateTechnicalAnalysis(slicedPrices);
+  const analysis = calculateTechnicalAnalysis(slicedPrices, options);
   const snapshot = buildIndicatorSnapshot(slicedPrices, analysis.indicators);
 
   return {
@@ -49,15 +50,16 @@ export function calculateTechnicalAnalysisForDate(prices, requestedDate) {
   };
 }
 
-export function calculateBacktest(prices, startDate, endDate) {
+export function calculateBacktest(prices, startDate, endDate, options = {}) {
   return calculateBacktestRange(prices, startDate, endDate, {
     analyzePrices: calculateTechnicalAnalysis,
     buildIndicatorSnapshot,
+    analysisOptions: options,
   });
 }
 
 function evaluateMarketState(prices, indicators) {
-  const closes = prices.map(p => p.close);
+  const closes = prices.map(price => price.close);
   const lastClose = closes.at(-1) ?? null;
   const ema20 = indicators.movingAverages.ema20.at(-1);
   const ema50 = indicators.movingAverages.ema50.at(-1);

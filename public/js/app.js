@@ -4,6 +4,7 @@ const state = {
   currentTicker: null,
   currentRange: '6mo',
   currentFinancialPeriod: 'annual',
+  currentStrategy: 'balanced',
   technicalData: null,
   financialData: null,
   currency: 'USD',
@@ -12,6 +13,7 @@ const state = {
 
 const tickerInput = document.getElementById('tickerInput');
 const suffixSelect = document.getElementById('suffixSelect');
+const strategySelect = document.getElementById('strategySelect');
 const searchBtn = document.getElementById('searchBtn');
 const autocomplete = document.getElementById('autocomplete');
 const errorBanner = document.getElementById('errorBanner');
@@ -69,6 +71,13 @@ const backtestWinRate = document.getElementById('backtestWinRate');
 const backtestMdd = document.getElementById('backtestMdd');
 const backtestBuyHold = document.getElementById('backtestBuyHold');
 const backtestActualRange = document.getElementById('backtestActualRange');
+const backtestAvgTradeReturn = document.getElementById('backtestAvgTradeReturn');
+const backtestAvgHoldingDays = document.getElementById('backtestAvgHoldingDays');
+const backtestAvgWinReturn = document.getElementById('backtestAvgWinReturn');
+const backtestAvgLossReturn = document.getElementById('backtestAvgLossReturn');
+const backtestSignalCounts = document.getElementById('backtestSignalCounts');
+const backtestActionCounts = document.getElementById('backtestActionCounts');
+const backtestSetupStats = document.getElementById('backtestSetupStats');
 const backtestTableBody = document.getElementById('backtestTableBody');
 const chartSection = document.getElementById('chartSection');
 
@@ -81,6 +90,7 @@ document.addEventListener('DOMContentLoaded', () => {
   setupHistoricalSignal();
   setupBacktest();
   setupSectionToggles();
+  setupStrategySelector();
   loadFromURL();
 });
 
@@ -88,6 +98,13 @@ function loadFromURL() {
   const params = new URLSearchParams(window.location.search);
   const ticker = params.get('ticker');
   const range = params.get('range') || '6mo';
+  const strategy = params.get('strategy') || 'balanced';
+
+  if (strategySelect) {
+    strategySelect.value = strategy;
+    state.currentStrategy = strategySelect.value;
+  }
+
   if (!ticker) return;
 
   tickerInput.value = ticker;
@@ -102,7 +119,16 @@ function pushURL(ticker, range) {
   const url = new URL(window.location);
   url.searchParams.set('ticker', ticker);
   url.searchParams.set('range', range);
+  url.searchParams.set('strategy', state.currentStrategy);
   history.replaceState({}, '', url);
+}
+
+function setupStrategySelector() {
+  if (!strategySelect) return;
+  strategySelect.addEventListener('change', () => {
+    state.currentStrategy = strategySelect.value;
+    if (state.currentTicker) search(state.currentTicker, state.currentRange);
+  });
 }
 
 function setupSearch() {
@@ -167,7 +193,7 @@ async function resolveToTicker(query) {
     const top = (data.suggestions || [])[0];
     if (top) return { symbol: top.symbol, hasDot: top.symbol.includes('.'), resolved: true };
   } catch (_) {
-    // Fall through to raw query.
+    // Ignore and fall back to the raw query.
   }
   return { symbol: query, hasDot: query.includes('.'), resolved: false };
 }
@@ -212,6 +238,7 @@ function renderAutocomplete(suggestions) {
 async function search(ticker, range) {
   state.currentTicker = ticker;
   state.currentRange = range;
+  state.currentStrategy = strategySelect?.value || state.currentStrategy;
 
   showLoading(true);
   hideError();
@@ -228,9 +255,10 @@ async function search(ticker, range) {
 
   try {
     const suffix = suffixSelect.value;
+    const strategy = state.currentStrategy;
     const [technicalResult, financialResult] = await Promise.allSettled([
-      fetch(`/api/stock/technical?ticker=${encodeURIComponent(ticker)}&range=${range}&suffix=${suffix}`).then(res => res.json()),
-      fetch(`/api/stock/financials?ticker=${encodeURIComponent(ticker)}&suffix=${suffix}`).then(res => res.json()),
+      fetchJson(`/api/stock/technical?ticker=${encodeURIComponent(ticker)}&range=${range}&suffix=${suffix}&strategy=${strategy}`),
+      fetchJson(`/api/stock/financials?ticker=${encodeURIComponent(ticker)}&suffix=${suffix}`),
     ]);
 
     if (technicalResult.status !== 'fulfilled' || technicalResult.value.error) {
@@ -264,7 +292,7 @@ async function search(ticker, range) {
     fetchAndRenderFearGreed();
     fetchAndRenderNews(technicalResult.value.resolvedTicker);
   } catch (_) {
-    showError('서버 연결에 실패했습니다. 다시 시도해 주세요.');
+    showError('서버 연결에 실패했습니다. 잠시 후 다시 시도해 주세요.');
     showLoading(false);
   }
 }
@@ -307,14 +335,14 @@ function renderSignalOverview(data) {
   signalOverview.classList.remove('hidden');
   signalHeadline.textContent = formatSignal(summary.signal);
   signalHeadline.className = `signal-headline signal-${String(summary.signal || 'neutral').toLowerCase()}`;
-  signalStrength.textContent = formatStrength(summary.strength);
+  signalStrength.textContent = `${formatStrength(summary.strength)} · ${formatStrategy(data.strategy)}`;
 
   signalReasons.innerHTML = (summary.reasons || []).map(reason => `<li>${escapeHtml(reason)}</li>`).join('');
   signalRisks.innerHTML = (summary.risks || []).map(risk => `<li>${escapeHtml(risk)}</li>`).join('');
 
   scoreCards.innerHTML = `
-    ${renderScoreCard('매수 점수', scores.buyScore, '현재 엔진이 계산한 매수 우위 점수입니다.', 'buy')}
-    ${renderScoreCard('매도 점수', scores.sellScore, '현재 엔진이 계산한 매도 우위 점수입니다.', 'sell')}
+    ${renderScoreCard('매수 점수', scores.buyScore, '현재 엔진 기준 매수 우위 점수입니다.', 'buy')}
+    ${renderScoreCard('매도 점수', scores.sellScore, '현재 엔진 기준 매도 우위 점수입니다.', 'sell')}
     ${renderScoreCard('추세 강도', formatLocalizedValue(marketState.trendStrength), `방향: ${formatLocalizedValue(marketState.trend)}`, 'neutral')}
     ${renderScoreCard('변동성', formatLocalizedValue(marketState.volatility), `모멘텀: ${formatLocalizedValue(marketState.momentum)}`, 'neutral')}
   `;
@@ -414,10 +442,7 @@ function prepareHistoricalSignal(data) {
 
   const lastDate = prices[prices.length - 1].date;
   historicalDateInput.max = lastDate;
-
-  if (!historicalDateInput.value) {
-    historicalDateInput.value = lastDate;
-  }
+  if (!historicalDateInput.value) historicalDateInput.value = lastDate;
 }
 
 function resetHistoricalSignal() {
@@ -436,8 +461,8 @@ async function fetchHistoricalSignal() {
 
   try {
     const suffix = suffixSelect.value;
-    const response = await fetch(`/api/stock/historical-snapshot?ticker=${encodeURIComponent(state.currentTicker)}&target_date=${encodeURIComponent(historicalDateInput.value)}&range=5y&suffix=${suffix}`);
-    const data = await response.json();
+    const strategy = state.currentStrategy;
+    const data = await fetchJson(`/api/stock/historical-snapshot?ticker=${encodeURIComponent(state.currentTicker)}&target_date=${encodeURIComponent(historicalDateInput.value)}&range=5y&suffix=${suffix}&strategy=${strategy}`);
 
     if (data.error) {
       showError(data.error);
@@ -461,7 +486,7 @@ function renderHistoricalSignal(data) {
   historicalSignalResult.classList.remove('hidden');
   historicalRequestedDate.textContent = data.requestedDate || '-';
   historicalActualDate.textContent = data.actualDate || '-';
-  historicalSignalLabel.textContent = data.signalSummary?.signal || '-';
+  historicalSignalLabel.textContent = formatSignal(data.signalSummary?.signal);
   historicalSignalLabel.className = `historical-signal-badge signal-${String((data.signalSummary?.signal || 'hold')).toLowerCase()}`;
   historicalScorePair.textContent = `${data.signalScores?.buyScore ?? '-'} / ${data.signalScores?.sellScore ?? '-'}`;
   historicalClose.textContent = formatMaybePrice(data.price?.close ?? snapshot.close);
@@ -523,8 +548,15 @@ function resetBacktest() {
   state.backtestData = null;
   backtestResult.classList.add('hidden');
   backtestTableBody.innerHTML = '';
+  backtestSignalCounts.innerHTML = '';
+  backtestActionCounts.innerHTML = '';
+  backtestSetupStats.innerHTML = '';
   backtestStartDate.value = '';
   backtestEndDate.value = '';
+  backtestAvgTradeReturn.textContent = '-';
+  backtestAvgHoldingDays.textContent = '-';
+  backtestAvgWinReturn.textContent = '-';
+  backtestAvgLossReturn.textContent = '-';
   if (toggleBacktestMarkersCheckbox) toggleBacktestMarkersCheckbox.checked = false;
   if (typeof buildBacktestChart === 'function') buildBacktestChart({ equityCurve: [], results: [] });
   if (typeof setBacktestMarkers === 'function') setBacktestMarkers(null);
@@ -538,8 +570,8 @@ async function fetchBacktest() {
 
   try {
     const suffix = suffixSelect.value;
-    const response = await fetch(`/api/stock/backtest?ticker=${encodeURIComponent(state.currentTicker)}&startDate=${encodeURIComponent(backtestStartDate.value)}&endDate=${encodeURIComponent(backtestEndDate.value)}&range=5y&suffix=${suffix}`);
-    const data = await response.json();
+    const strategy = state.currentStrategy;
+    const data = await fetchJson(`/api/stock/backtest?ticker=${encodeURIComponent(state.currentTicker)}&startDate=${encodeURIComponent(backtestStartDate.value)}&endDate=${encodeURIComponent(backtestEndDate.value)}&range=5y&suffix=${suffix}&strategy=${strategy}`);
 
     if (data.error) {
       showError(data.error);
@@ -559,6 +591,8 @@ function renderBacktest(data) {
   state.backtestData = data;
   const summary = data.summary || {};
   const actualRange = data.actualRange || {};
+  const statistics = data.statistics || {};
+  const tradeStats = statistics.tradeStats || {};
   const results = data.results || [];
 
   backtestResult.classList.remove('hidden');
@@ -569,27 +603,79 @@ function renderBacktest(data) {
   backtestBuyHold.textContent = formatPercent(summary.buyHoldReturnPct);
   backtestActualRange.textContent = `${actualRange.startDate || '-'} ~ ${actualRange.endDate || '-'} (${actualRange.tradingDays || 0}일)`;
 
+  backtestAvgTradeReturn.textContent = formatPercent(tradeStats.avgTradeReturnPct);
+  backtestAvgHoldingDays.textContent = tradeStats.avgHoldingDays == null ? '-' : `${tradeStats.avgHoldingDays.toFixed(1)}일`;
+  backtestAvgWinReturn.textContent = formatPercent(tradeStats.avgWinReturnPct);
+  backtestAvgLossReturn.textContent = formatPercent(tradeStats.avgLossReturnPct);
+
+  backtestSignalCounts.innerHTML = renderCountBreakdown(statistics.signalCounts, {
+    BUY: '매수 신호',
+    SELL: '매도 신호',
+    HOLD: '관망 신호',
+  });
+  backtestActionCounts.innerHTML = renderCountBreakdown(statistics.actionCounts, {
+    ENTER_LONG: '진입',
+    EXIT_LONG: '청산',
+    HOLD: '유지',
+  });
+  backtestSetupStats.innerHTML = renderSetupStats(statistics.setupStats || {});
+
   backtestTableBody.innerHTML = results.map(item => `
     <tr>
       <td>${escapeHtml(item.date)}</td>
       <td>${escapeHtml(formatMaybePrice(item.close))}</td>
       <td>${escapeHtml(String(item.buyScore ?? '-'))}</td>
       <td>${escapeHtml(String(item.sellScore ?? '-'))}</td>
-      <td>${escapeHtml(item.signal || '-')}</td>
-      <td>${escapeHtml(item.position || '-')}</td>
+      <td>${escapeHtml(formatSignal(item.signal))}</td>
+      <td>${escapeHtml(formatLocalizedValue(item.position || '-'))}</td>
+      <td>${escapeHtml(formatAction(item.action))}</td>
       <td>${escapeHtml(formatPercent(item.cumulativeReturnPct))}</td>
     </tr>
   `).join('');
 
-  if (typeof buildBacktestChart === 'function') {
-    buildBacktestChart(data);
-  }
-  if (typeof setBacktestMarkers === 'function') {
-    setBacktestMarkers(data);
-  }
+  if (typeof buildBacktestChart === 'function') buildBacktestChart(data);
+  if (typeof setBacktestMarkers === 'function') setBacktestMarkers(data);
   if (typeof toggleBacktestMarkers === 'function') {
     toggleBacktestMarkers(Boolean(toggleBacktestMarkersCheckbox?.checked));
   }
+}
+
+function renderCountBreakdown(counts, labels) {
+  if (!counts) return '<div class="breakdown-item">데이터 없음</div>';
+  return Object.entries(labels).map(([key, label]) => `
+    <div class="breakdown-item">
+      <span>${escapeHtml(label)}</span>
+      <strong>${escapeHtml(String(counts[key] ?? 0))}</strong>
+    </div>
+  `).join('');
+}
+
+function renderSetupStats(setupStats) {
+  const cards = [];
+  if (setupStats.buySignals) cards.push(buildSetupStatCard('매수 신호 이후', setupStats.buySignals));
+  if (setupStats.sellSignals) cards.push(buildSetupStatCard('매도 신호 이후', setupStats.sellSignals));
+  return cards.join('');
+}
+
+function buildSetupStatCard(title, stats) {
+  const lines = Object.entries(stats).map(([horizon, value]) => `
+    <div class="setup-stat-line">
+      <span>${escapeHtml(horizon)}</span>
+      <strong>${escapeHtml(formatSetupValue(value))}</strong>
+    </div>
+  `).join('');
+
+  return `
+    <div class="setup-stat-card">
+      <div class="setup-stat-title">${escapeHtml(title)}</div>
+      <div class="setup-stat-lines">${lines}</div>
+    </div>
+  `;
+}
+
+function formatSetupValue(value) {
+  if (!value || !value.count) return '표본 없음';
+  return `승률 ${formatPercent(value.winRatePct)} / 평균 ${formatPercent(value.avgReturnPct)}`;
 }
 
 function setupTabs() {
@@ -634,8 +720,8 @@ async function reloadTechnical() {
 
   try {
     const suffix = suffixSelect.value;
-    const response = await fetch(`/api/stock/technical?ticker=${encodeURIComponent(state.currentTicker)}&range=${state.currentRange}&suffix=${suffix}`);
-    const data = await response.json();
+    const strategy = state.currentStrategy;
+    const data = await fetchJson(`/api/stock/technical?ticker=${encodeURIComponent(state.currentTicker)}&range=${state.currentRange}&suffix=${suffix}&strategy=${strategy}`);
 
     if (data.error) {
       showError(data.error);
@@ -660,21 +746,12 @@ async function reloadTechnical() {
 }
 
 function setupIndicatorToggles() {
-  document.getElementById('toggleBB').addEventListener('change', event => {
-    toggleBollingerBands(event.target.checked);
-  });
-  document.getElementById('toggleMA').addEventListener('change', event => {
-    toggleMovingAverages(event.target.checked);
-  });
-  document.getElementById('toggleLevels').addEventListener('change', event => {
-    toggleSupportResistance(event.target.checked);
-  });
-  document.getElementById('toggleRSI').addEventListener('change', event => {
-    toggleRSI(event.target.checked);
-  });
-  document.getElementById('toggleMACD').addEventListener('change', event => {
-    toggleMACD(event.target.checked);
-  });
+  document.getElementById('toggleBB').addEventListener('change', event => toggleBollingerBands(event.target.checked));
+  document.getElementById('toggleMA').addEventListener('change', event => toggleMovingAverages(event.target.checked));
+  document.getElementById('toggleLevels').addEventListener('change', event => toggleSupportResistance(event.target.checked));
+  document.getElementById('toggleRSI').addEventListener('change', event => toggleRSI(event.target.checked));
+  document.getElementById('toggleMACD').addEventListener('change', event => toggleMACD(event.target.checked));
+
   if (toggleBacktestMarkersCheckbox) {
     toggleBacktestMarkersCheckbox.addEventListener('change', event => {
       if (typeof toggleBacktestMarkers === 'function') {
@@ -690,9 +767,7 @@ function syncIndicatorToggleState() {
   toggleSupportResistance(document.getElementById('toggleLevels').checked);
   toggleRSI(document.getElementById('toggleRSI').checked);
   toggleMACD(document.getElementById('toggleMACD').checked);
-  if (typeof setBacktestMarkers === 'function') {
-    setBacktestMarkers(state.backtestData);
-  }
+  if (typeof setBacktestMarkers === 'function') setBacktestMarkers(state.backtestData);
   if (typeof toggleBacktestMarkers === 'function') {
     toggleBacktestMarkers(Boolean(toggleBacktestMarkersCheckbox?.checked));
   }
@@ -736,9 +811,8 @@ async function fetchAndRenderNews(ticker) {
   list.innerHTML = '';
 
   try {
-    const response = await fetch(`/api/news/${encodeURIComponent(ticker)}`);
-    const data = await response.json();
-    renderNews(data.news || []);
+    const response = await fetchJson(`/api/news/${encodeURIComponent(ticker)}`);
+    renderNews(response.news || []);
   } catch (_) {
     list.innerHTML = '<p class="news-empty">관련 뉴스를 불러오지 못했습니다.</p>';
   } finally {
@@ -748,8 +822,7 @@ async function fetchAndRenderNews(ticker) {
 
 async function fetchAndRenderFearGreed() {
   try {
-    const response = await fetch('/api/market/fear-greed');
-    const data = await response.json();
+    const data = await fetchJson('/api/market/fear-greed');
     renderFearGreed(data);
   } catch (_) {
     resetFearGreed();
@@ -775,7 +848,7 @@ function renderFearGreed(data) {
 function buildFearGreedMeta(data) {
   const source = data.source ? `출처: ${data.source}` : '';
   const nextUpdate = Number.isFinite(data.timeUntilUpdate)
-    ? `업데이트까지 약 ${Math.max(1, Math.round(data.timeUntilUpdate / 3600))}시간`
+    ? `다음 업데이트까지 약 ${Math.max(1, Math.round(data.timeUntilUpdate / 3600))}시간`
     : '';
   return [source, nextUpdate].filter(Boolean).join(' · ');
 }
@@ -846,12 +919,22 @@ function formatSignal(signal) {
   switch (signal) {
     case 'BUY': return '매수 우위';
     case 'SELL': return '매도 우위';
+    case 'HOLD': return '관망';
     default: return '중립 / 관망';
   }
 }
 
 function formatStrength(strength) {
   return formatLocalizedValue(strength || 'watch');
+}
+
+function formatStrategy(strategy) {
+  const labels = {
+    balanced: '균형형',
+    trend_following: '추세추종형',
+    mean_reversion: '평균회귀형',
+  };
+  return labels[strategy] || strategy || '균형형';
 }
 
 function formatScoreValue(value) {
@@ -865,9 +948,9 @@ function formatLocalizedValue(value) {
     buy: '매수',
     sell: '매도',
     neutral: '중립',
-    hold: '보유',
+    hold: '관망',
     unknown: '정보 없음',
-    watch: '관망',
+    watch: '관찰',
     weak: '약함',
     moderate: '보통',
     strong: '강함',
@@ -890,6 +973,15 @@ function formatLocalizedValue(value) {
   return labels[normalized] || String(value).replace(/_/g, ' ');
 }
 
+function formatAction(action) {
+  const labels = {
+    ENTER_LONG: '진입',
+    EXIT_LONG: '청산',
+    HOLD: '유지',
+  };
+  return labels[action] || action || '-';
+}
+
 function formatMaybeNumber(value, digits = 2) {
   return typeof value === 'number' && Number.isFinite(value) ? value.toFixed(digits) : '-';
 }
@@ -909,6 +1001,11 @@ function formatBollingerBands(indicators, snapshot) {
   const middle = indicators.bollingerMiddle ?? snapshot.bollingerMiddle;
   const lower = indicators.bollingerLower ?? snapshot.bollingerLower;
   return `${formatMaybePrice(upper)} / ${formatMaybePrice(middle)} / ${formatMaybePrice(lower)}`;
+}
+
+async function fetchJson(url) {
+  const response = await fetch(url);
+  return response.json();
 }
 
 function escapeHtml(str) {
