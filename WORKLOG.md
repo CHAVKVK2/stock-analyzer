@@ -1,234 +1,169 @@
 # WORKLOG
 
-## Overview
+## Purpose
 
-This file summarizes the recent Codex work on the `stock-analyzer` project so the current state can be resumed quickly inside the app or from GitHub.
+This file records the main implementation history of `stock-analyzer` so a new session can quickly understand what was built and in what order.
 
-## Recent Progress
+## Core Build History
 
-### 1. Financial statement fixes
+### 1. Base technical analysis dashboard
 
-- Fixed financial statement labels that were displayed like `Q3 2025` when annual labels should have shown only the year.
-- Filled the short-term investments field that was previously blank in some balance sheet views.
+- Added current-day signal analysis around:
+  - RSI
+  - MACD
+  - Bollinger Bands
+- Added structured signal output:
+  - market state
+  - buy / sell scores
+  - signal summary
 
-Commit:
-
-- `1752b71` `Fix financial statement labels`
-
-### 2. Korean alias support
-
-- Added early support for Korean and English stock aliases so inputs like `삼성전자`, `애플`, and `테슬라` resolve to Yahoo Finance tickers.
-
-Commit:
-
-- `49ec278` `Resolve Korean stock aliases`
-
-### 3. Technical scoring engine
-
-- Expanded technical analysis output beyond RSI, MACD, and Bollinger Bands.
-- Added:
-  - `EMA20`, `EMA50`, `SMA200`
-  - `ATR14`
-  - `ADX`, `+DI`, `-DI`
-  - `OBV`
-  - `Volume MA20`
-  - support/resistance levels
-- Added structured outputs:
-  - `marketState`
-  - `signalScores`
-  - `signalSummary`
-
-Commit:
+Related commits:
 
 - `182ebc3` `Add technical scoring engine`
-
-### 4. Signal dashboard UI
-
-- Added a signal overview section in the frontend.
-- Added headline and strength display for `BUY / SELL / NEUTRAL`.
-- Added score cards, market badges, and reason/risk panels.
-- Updated charts to show moving averages, support/resistance overlays, and new technical outputs.
-
-Commit:
-
 - `6fe6cf6` `Add signal dashboard UI`
 
-### 5. Autocomplete symbol bug fix
+### 2. Financial statement improvements
 
-- Fixed a bug where selected stock symbols were being converted to `#` because a URL sanitizer was mistakenly used for ticker attributes.
+- Fixed annual financial labels that were showing quarter-style text.
+- Filled missing short-term investment field in balance sheet output.
+- Stabilized financial table rendering in the frontend.
 
-Commit:
+Related commits:
 
-- `f997849` `Fix autocomplete symbol escaping`
+- `1752b71` `Fix financial statement labels`
+- `9ce899a` `Fix financial table rendering`
 
-### 6. UI localization
+### 3. Korean stock search support
 
-- Localized the signal engine area into Korean.
-- Localized chart labels such as:
-  - `Price Action` -> `주가 흐름`
-  - `Close` -> `종가`
-  - `Bollinger Bands` -> `볼린저 밴드`
-  - `Support / Resistance` -> `지지선 / 저항선`
+- Added local Korean alias support.
+- Added more Korean company-name mappings.
+- Added KRX fallback search so Korean names do not rely only on manual aliases.
+- Fixed suffix handling so English names like `apple` do not become `AAPL.KS`.
 
-Commits:
+Related commits:
 
-- `f63a91e` `Localize signal engine UI`
-- `3d5bcf3` `Localize chart labels`
-
-### 7. Korean stock name search improvements
-
-- Reworked Korean stock name search using a local alias catalog.
-- Added support for searching Korean names directly instead of only English tickers or symbols.
-- Fixed a suffix-handling issue where English company names like `apple` could be incorrectly turned into symbols such as `AAPL.KS`.
-
-Commits:
-
+- `49ec278` `Resolve Korean stock aliases`
 - `4576a29` `Support Korean stock name search`
 - `693819c` `Fix English name search suffix handling`
-
-### 8. Expanded Korean alias coverage
-
-- Added more frequently used Korean market names that were failing before.
-- Verified and added mappings for examples such as:
-  - `삼성바이오로직스`
-  - `LG 전자`
-  - `KB금융`
-  - `한미반도체`
-  - `현대모비스`
-  - `두산로보틱스`
-
-Commits:
-
 - `8b32267` `Add more Korean stock aliases`
 - `a2ee63c` `Add Hyundai short alias`
-
-### 9. KRX fallback for Korean stock search
-
-- Added a fallback that loads the official KRX listed-company table and uses it to search Korean stock names.
-- This reduces the need to manually add every Korean stock alias one by one.
-- Verified that previously failing examples now resolve correctly:
-  - `현대차증권` -> `001500.KS`
-  - `현대사료` -> `016790.KQ`
-
-Commit:
-
 - `7a522b5` `Add KRX fallback for Korean stock search`
 
-### 10. Historical signal and backtest features
+### 4. Historical signal and backtest features
 
-- Added Point-in-Time signal lookup for a selected historical date.
-- Added a date-range backtest flow using historical daily signals and long-only trade simulation.
-- Added chart marker support for backtest entry and exit points, controlled by a checkbox near the indicator toggles.
+- Added Point-in-Time signal lookup for a selected date.
+- Added date-range backtesting.
+- Added backtest entry / exit markers.
+- Added strategy comparison:
+  - balanced
+  - trend-following
+  - mean-reversion
 
-Commits:
+Related commits:
 
 - `fd0071b` `Add historical single-date signal lookup`
-- `f577e2f` `과거 신호 조회 및 백테스트 UI 추가`
-- `88289c9` `Add historical signal UI and project docs`
 - `5edcaa7` `Add backtest entry exit chart markers`
+- `af16de5` `Add strategy modes and backtest statistics`
+- `64d638d` `Polish Korean UI and compare strategies`
 
-## Current Status
+### 5. Refactor and architecture cleanup
 
-### Search
+- Split technical-analysis logic into smaller services:
+  - indicators
+  - signal scoring
+  - signal summary
+  - backtest engine
+  - score weights
+- Reduced the role of `technicalService.js` to orchestration.
 
-- English ticker search works.
-- English company-name search works.
-- Korean company-name search works for:
-  - manual aliases in the local catalog
-  - KRX-listed Korean names through the KRX fallback
+Related commits:
 
-### Technical analysis
+- `6eefe51` `Split technical analysis services`
+- `599925a` `Extract signal scoring weights`
 
-- `/api/stock/technical` returns technical indicators, market state, scoring, and summary text.
+### 6. Documentation and state-tracking docs
 
-### Historical analysis
+- Added project state and decision docs so future sessions do not need full chat history.
+- Added Render deployment setup docs.
 
-- `/api/stock/historical-snapshot` returns a Point-in-Time signal using only data up to the selected date.
-- `/api/stock/backtest` runs a date-range backtest using daily historical signal evaluation.
-- Backtest entry and exit points can now be overlaid on the main price chart.
+Related commits:
 
-### Frontend
+- `16e7ee3` `Add project state docs and Render deployment setup`
 
-- Signal dashboard is visible in Korean.
-- Chart labels are mostly localized into Korean.
-- Some text encoding cleanup is still needed in parts of the page.
+### 7. Sharing and deployment
 
-### Remote backup
+- Set up temporary sharing with ngrok free tunnel.
+- Set up persistent hosted sharing with Render free web service.
+- Verified public Render site:
+  - `https://stock-analyzer-gfac.onrender.com/`
 
-- All recent work has been pushed to GitHub.
-- Remote repository:
-  - `https://github.com/CHAVKVK2/stock-analyzer`
+Notes:
 
-## Recent Commit History
+- ngrok is temporary and depends on the local PC staying on.
+- Render free is more durable but can sleep after inactivity.
 
-- `5edcaa7` `Add backtest entry exit chart markers`
-- `88289c9` `Add historical signal UI and project docs`
-- `f577e2f` `과거 신호 조회 및 백테스트 UI 추가`
-- `fd0071b` `Add historical single-date signal lookup`
-- `c40bf44` `Refresh asset cache version`
-- `81fbf95` `Fix financial tab visibility`
-- `fb9a6ea` `Bust frontend cache for financials`
-- `9ce899a` `Fix financial table rendering`
-- `02ded7a` `Add fear and greed index card`
-- `7a522b5` `Add KRX fallback for Korean stock search`
+### 8. Chart system upgrade
 
-## Latest Evaluation
+- Replaced the main price chart with `Lightweight Charts` for a more trading-style feel.
+- Kept supporting charts on `Chart.js` where it was still practical.
+- Restored RSI / MACD side panels after the first chart migration.
+- Fixed range-button behavior so period switching does not unnecessarily hide the whole screen.
 
-### Claude Code review summary
+Related commits:
 
-- Claude Code reviewed the current project state, recent commits, local dev status, and the project documents `AGENTS.md`, `WORKLOG.md`, and `LESSONS.md`.
-- The review conclusion was that the current direction is strong, but the existing signal engine should be understood as a trend-following and rule-based technical engine rather than a true quant prediction engine.
+- `ed5156e` `Adopt lightweight charts for price view`
 
-### Main strengths called out in the review
+## Important Review Feedback Recorded
 
-- Reusing the same analysis path for current-day and historical calculations was considered a strong architectural decision.
-- The current Point-in-Time flow correctly avoids future data leakage by slicing historical data before signal calculation.
-- The 5-part scoring structure (`trend`, `momentum`, `volume`, `location`, `risk`) was considered explainable and extensible.
-- The current product direction was viewed as a good base for later quant-style features.
+Claude Code review summary:
 
-### Main risks called out in the review
+- The current engine should be described as:
+  - trend-following
+  - rule-based
+  - technical-analysis driven
+- It should not yet be described as:
+  - a quant prediction engine
+  - a machine-learning model
+- Recommended direction:
+  - separate technical analysis from quant / probability views
+  - keep using backtest results as the path toward probability-style features
 
-- `src/services/technicalService.js` is too large and currently mixes indicators, scoring, backtest logic, and summary generation.
-- `public/js/app.js` is also growing too large as a single orchestration file.
-- Score weights are hardcoded and are not yet backed by statistical validation.
-- The current backtest logic does not yet include slippage, taxes, or transaction costs.
-- Encoding issues in some UI strings still reduce clarity and product trust.
+## Current Product Scope
 
-### Product interpretation from the review
+The app currently supports:
 
-- The current engine is fundamentally **trend-following**:
-  - it uses moving averages, MACD, ADX, RSI behavior, and volume confirmation to judge current direction and setup quality
-  - it does not yet estimate future return distributions or conditional historical probabilities
-- Because of that, the review recommended separating the product conceptually into:
-  - a **real-time technical analysis** area
-  - a **backtest / quant / probability** area
+- Korean and US stock search
+- current-day technical dashboard
+- historical Point-in-Time analysis
+- date-range backtest
+- strategy comparison
+- financial statements
+- fear and greed index
+- Render deployment
 
-### Most important recommendation
+## Current Open Problems
 
-- Before adding more advanced quant features, the codebase should first be stabilized by:
-  1. splitting `technicalService.js`
-  2. cleaning broken UI text and encoding issues
-  3. extracting score weights into constants or config
-  4. separating the UI into clearer product areas
+- Some Korean text / encoding cleanup still remains.
+- Backtest realism is still limited:
+  - no slippage
+  - no commission
+  - no tax modeling
+- `public/js/app.js` is still larger than ideal.
+- `Lightweight Charts` migration is only partial:
+  - main price chart migrated
+  - not every sub-indicator is yet fully moved into the new chart system
 
-### Recommended next technical direction
+## Recent Exploration Notes
 
-- The review suggested that the best next step toward predictive usefulness is not adding a new model first.
-- Instead, it recommended extending the existing backtest loop to produce **pattern frequency and outcome statistics**, such as:
-  - how often a specific setup led to gains after 5, 10, or 20 trading days
-  - what the average return and downside looked like after a setup
-  - how results changed by market regime
+- `Lightweight Charts` is a good free path toward a TradingView-like feel.
+- Naver Finance appears usable only through non-official web-data style integration.
+- Kiwoom is the better official Korean-market direction, especially:
+  - Kiwoom REST API
+- Kiwoom OpenAPI+ is less suitable for this project because it is more Windows desktop oriented.
 
-### Recommended next product direction
+## Best Next Steps
 
-- Treat the current UI as the beginning of a dual-mode product:
-  - **technical analysis / signal dashboard**
-  - **quant / backtest / probability analysis**
-- This should be done incrementally through tabs or sections, not a full redesign.
-
-## Suggested Next Steps
-
-1. Split `src/services/technicalService.js` into smaller backend modules without breaking current routes.
-2. Clean remaining broken UI text and encoding issues.
-3. Extract score weights into constants for later calibration.
-4. Add setup outcome statistics using the existing backtest loop before adding more complex predictive features.
+1. Finish chart stabilization after the `Lightweight Charts` migration
+2. Clean remaining broken text and mixed encoding
+3. Add setup outcome statistics for 5 / 10 / 20 day forward results
+4. Improve backtest realism with cost assumptions
