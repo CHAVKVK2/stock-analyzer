@@ -1,4 +1,4 @@
-'use strict';
+﻿'use strict';
 
 const STRATEGY_LABELS = {
   balanced: '\uade0\ud615\ud615',
@@ -569,7 +569,7 @@ async function fetchBacktest() {
   try {
     const comparisons = await fetchBacktestComparisons();
     const primary = comparisons.find(item => item.strategy === state.currentStrategy) || comparisons[0];
-    if (!primary) throw new Error('No backtest result');
+    if (!primary) throw new Error('백테스트 결과가 없습니다.');
     renderBacktest(primary, comparisons);
   } catch (_) {
     showError('\ubc31\ud14c\uc2a4\ud2b8\ub97c \uc2e4\ud589\ud558\uc9c0 \ubabb\ud588\uc2b5\ub2c8\ub2e4.');
@@ -1061,3 +1061,4 @@ function setPanelTitles() {
 function setText(selector, text) { const node = document.querySelector(selector); if (node) node.textContent = text; }
 function setOptionText(select, labels) { if (!select) return; Array.from(select.options).forEach((option, index) => { if (labels[index]) option.textContent = labels[index]; }); }
 function setButtonText(button, text) { if (!button) return; const textNode = Array.from(button.childNodes).find(node => node.nodeType === Node.TEXT_NODE); if (textNode) textNode.nodeValue = ` ${text}`; else button.append(` ${text}`); }
+

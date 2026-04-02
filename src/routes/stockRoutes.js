@@ -13,19 +13,19 @@ function getStrategy(strategy) {
 }
 
 function parseSnapshotDate(query) {
-  return query.snapshot_date || query.target_date || query.date || null;
+  return query.snapshot_date || null;
 }
 
 function parseBacktestDates(query) {
   return {
-    startDate: query.start_date || query.startDate || null,
-    endDate: query.end_date || query.endDate || null,
+    startDate: query.start_date || null,
+    endDate: query.end_date || null,
   };
 }
 
 function validateTicker(ticker, res) {
   if (!ticker) {
-    sendError(res, 400, 'INVALID_REQUEST', 'ticker 파라미터가 필요합니다.');
+    sendError(res, 400, 'INVALID_REQUEST', 'ticker \ud30c\ub77c\ubbf8\ud130\uac00 \ud544\uc694\ud569\ub2c8\ub2e4.');
     return false;
   }
   return true;
@@ -33,7 +33,7 @@ function validateTicker(ticker, res) {
 
 function validateRange(range, res) {
   if (!VALID_RANGES.has(range)) {
-    sendError(res, 400, 'INVALID_RANGE', `지원하지 않는 range 값입니다: ${range}`);
+    sendError(res, 400, 'INVALID_RANGE', `\uc9c0\uc6d0\ud558\uc9c0 \uc54a\ub294 range \uac12\uc785\ub2c8\ub2e4: ${range}`);
     return false;
   }
   return true;
@@ -87,7 +87,7 @@ async function handleHistoricalSnapshot(req, res, next, canonicalPath) {
 
     if (!validateTicker(ticker, res)) return;
     if (!snapshotDate) {
-      sendError(res, 400, 'INVALID_REQUEST', 'snapshot_date 파라미터가 필요합니다.');
+      sendError(res, 400, 'INVALID_REQUEST', 'snapshot_date \ud30c\ub77c\ubbf8\ud130\uac00 \ud544\uc694\ud569\ub2c8\ub2e4.');
       return;
     }
     if (!validateRange(range, res)) return;
@@ -170,8 +170,13 @@ router.get('/financials', async (req, res, next) => {
   }
 });
 
-router.get('/signal-date', async (req, res, next) => {
-  return handleHistoricalSnapshot(req, res, next, '/api/stock/historical-snapshot');
+router.get('/signal-date', async (req, res) => {
+  sendError(
+    res,
+    410,
+    'DEPRECATED_ENDPOINT',
+    'signal-date \uc5d4\ub4dc\ud3ec\uc778\ud2b8\ub294 \ub354 \uc774\uc0c1 \uc0ac\uc6a9\ud558\uc9c0 \uc54a\uc2b5\ub2c8\ub2e4. /api/stock/historical-snapshot?snapshot_date=YYYY-MM-DD \ub97c \uc0ac\uc6a9\ud574\uc8fc\uc138\uc694.'
+  );
 });
 
 router.get('/historical-snapshot', async (req, res, next) => {
@@ -185,7 +190,7 @@ router.get('/backtest', async (req, res, next) => {
 
     if (!validateTicker(ticker, res)) return;
     if (!startDate || !endDate) {
-      sendError(res, 400, 'INVALID_REQUEST', 'start_date와 end_date 파라미터가 필요합니다.');
+      sendError(res, 400, 'INVALID_REQUEST', 'start_date\uc640 end_date \ud30c\ub77c\ubbf8\ud130\uac00 \ud544\uc694\ud569\ub2c8\ub2e4.');
       return;
     }
     if (!validateRange(range, res)) return;

@@ -120,7 +120,8 @@ Related commits:
   - `snapshot_date`
   - `start_date`
   - `end_date`
-- Kept legacy aliases temporarily for compatibility.
+- Removed legacy date parameter aliases.
+- Changed `/api/stock/signal-date` into a deprecated 410 endpoint with a migration message.
 - Added minimum smoke tests for:
   - Korean search resolution
   - invalid ticker JSON error

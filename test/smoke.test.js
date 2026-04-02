@@ -64,3 +64,12 @@ test('backtest는 정상 범위에서 summary와 results를 반환한다', async
   assert.ok(body.data.results.length > 0);
   assert.equal(typeof body.data.summary.tradeCount, 'number');
 });
+
+test('deprecated signal-date 엔드포인트는 410과 안내 메시지를 반환한다', async () => {
+  const { response, body } = await getJson('/api/stock/signal-date?ticker=AAPL&snapshot_date=2025-01-22&range=2y&suffix=none');
+
+  assert.equal(response.status, 410);
+  assert.equal(body.ok, false);
+  assert.equal(body.error.code, 'DEPRECATED_ENDPOINT');
+  assert.match(body.error.message, /historical-snapshot/);
+});

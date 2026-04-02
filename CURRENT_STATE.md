@@ -58,8 +58,9 @@ This file is the quickest way to understand the live state of `stock-analyzer` w
 - financial statement view
 - Render deployment
 - API contract cleanup
-  - canonical date parameters
+  - canonical date parameters only
   - stable JSON success/error envelope
+  - deprecated `signal-date` endpoint now returns 410
 - minimum smoke tests
 
 ## Current Chart State
@@ -99,7 +100,7 @@ This file is the quickest way to understand the live state of `stock-analyzer` w
   - no commission
   - no taxes
 - `public/js/app.js` is still large.
-- legacy API aliases are still intentionally kept for compatibility
+- only the deprecated `signal-date` endpoint remains as a temporary compatibility shim
 
 ## Current Sharing / Deployment Reality
 
@@ -119,7 +120,7 @@ This file is the quickest way to understand the live state of `stock-analyzer` w
 
 ## Best Next Steps
 
-1. Remove legacy API aliases in a controlled follow-up
+1. Remove the deprecated `signal-date` endpoint after usage check
 2. Finish stabilizing the chart migration
 3. Clean remaining broken UI text
 4. Improve backtest realism
