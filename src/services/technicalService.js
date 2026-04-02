@@ -82,8 +82,10 @@ function evaluateMarketState(prices, indicators) {
 
 function buildIndicatorSnapshot(prices, indicators) {
   const context = buildScoreContext(prices, indicators);
+  const latestPrice = prices.at(-1);
 
   return {
+    date: latestPrice?.date ?? null,
     close: context.lastClose,
     rsi: context.rsi,
     macd: context.macd,

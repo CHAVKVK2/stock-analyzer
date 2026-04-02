@@ -44,7 +44,7 @@ const fearGreedFill = document.getElementById('fearGreedFill');
 const toggleRulesSection = document.getElementById('toggleRulesSection');
 const togglePointInTimeSection = document.getElementById('togglePointInTimeSection');
 const toggleBacktestSection = document.getElementById('toggleBacktestSection');
-const toggleFearGreedSection = document.getElementById('toggleFearGreedSection');
+const toggleSecondaryInfoSection = document.getElementById('toggleSecondaryInfoSection');
 const toggleChartSection = document.getElementById('toggleChartSection');
 const toggleBacktestMarkersCheckbox = document.getElementById('toggleBacktestMarkers');
 const rulesSection = document.getElementById('rulesSection');
@@ -88,6 +88,7 @@ const backtestSetupStats = document.getElementById('backtestSetupStats');
 const backtestStrategyCompare = document.getElementById('backtestStrategyCompare');
 const backtestTableBody = document.getElementById('backtestTableBody');
 const chartSection = document.getElementById('chartSection');
+const secondaryInfoSection = document.getElementById('secondaryInfoSection');
 
 document.addEventListener('DOMContentLoaded', () => {
   applyStaticLocalization();
@@ -264,10 +265,8 @@ async function search(ticker, range) {
       fetchJson(`/api/stock/financials?ticker=${encodeURIComponent(ticker)}&suffix=${suffix}`),
     ]);
 
-    if (technicalResult.status !== 'fulfilled' || technicalResult.value.error) {
-      const message = technicalResult.status === 'fulfilled'
-        ? technicalResult.value.error
-        : '\uae30\uc220\uc801 \ubd84\uc11d \ub370\uc774\ud130\ub97c \ubd88\ub7ec\uc624\uc9c0 \ubabb\ud588\uc2b5\ub2c8\ub2e4.';
+    if (technicalResult.status !== 'fulfilled') {
+      const message = technicalResult.reason?.message || '\uae30\uc220\uc801 \ubd84\uc11d \ub370\uc774\ud130\ub97c \ubd88\ub7ec\uc624\uc9c0 \ubabb\ud588\uc2b5\ub2c8\ub2e4.';
       showError(message);
       showLoading(false);
       return;
@@ -282,7 +281,7 @@ async function search(ticker, range) {
     buildPriceChart(technicalResult.value);
     syncIndicatorToggleState();
 
-    if (financialResult.status === 'fulfilled' && !financialResult.value.error) {
+    if (financialResult.status === 'fulfilled') {
       state.financialData = financialResult.value;
       renderAllFinancials(financialResult.value, state.currentFinancialPeriod, state.currency);
     } else {
@@ -424,8 +423,8 @@ function setupSectionToggles() {
   bindSectionToggle(toggleRulesSection, rulesSection);
   bindSectionToggle(togglePointInTimeSection, historicalSignalSection);
   bindSectionToggle(toggleBacktestSection, backtestSection);
-  bindSectionToggle(toggleFearGreedSection, fearGreedSection);
   bindSectionToggle(toggleChartSection, chartSection);
+  bindSectionToggle(toggleSecondaryInfoSection, secondaryInfoSection);
 }
 
 function bindSectionToggle(checkbox, section) {
@@ -465,16 +464,11 @@ async function fetchHistoricalSignal() {
   try {
     const suffix = suffixSelect.value;
     const strategy = state.currentStrategy;
-    const data = await fetchJson(`/api/stock/historical-snapshot?ticker=${encodeURIComponent(state.currentTicker)}&target_date=${encodeURIComponent(historicalDateInput.value)}&range=5y&suffix=${suffix}&strategy=${strategy}`);
-
-    if (data.error) {
-      showError(data.error);
-      return;
-    }
+    const data = await fetchJson(`/api/stock/historical-snapshot?ticker=${encodeURIComponent(state.currentTicker)}&snapshot_date=${encodeURIComponent(historicalDateInput.value)}&range=5y&suffix=${suffix}&strategy=${strategy}`);
 
     renderHistoricalSignal(data);
-  } catch (_) {
-    showError('\uacfc\uac70 \ub0a0\uc9dc \uc2e0\ud638\ub97c \ubd88\ub7ec\uc624\uc9c0 \ubabb\ud588\uc2b5\ub2c8\ub2e4.');
+  } catch (error) {
+    showError(error.message || '\uacfc\uac70 \ub0a0\uc9dc \uc2e0\ud638\ub97c \ubd88\ub7ec\uc624\uc9c0 \ubabb\ud588\uc2b5\ub2c8\ub2e4.');
   } finally {
     historicalSignalBtn.disabled = false;
     historicalSignalBtn.textContent = '\uacc4\uc0b0';
@@ -589,8 +583,7 @@ async function fetchBacktestComparisons() {
   const suffix = suffixSelect.value;
   const strategies = Object.keys(STRATEGY_LABELS);
   const requests = strategies.map(async strategy => {
-    const data = await fetchJson(`/api/stock/backtest?ticker=${encodeURIComponent(state.currentTicker)}&startDate=${encodeURIComponent(backtestStartDate.value)}&endDate=${encodeURIComponent(backtestEndDate.value)}&range=5y&suffix=${suffix}&strategy=${strategy}`);
-    if (data.error) throw new Error(data.error);
+    const data = await fetchJson(`/api/stock/backtest?ticker=${encodeURIComponent(state.currentTicker)}&start_date=${encodeURIComponent(backtestStartDate.value)}&end_date=${encodeURIComponent(backtestEndDate.value)}&range=5y&suffix=${suffix}&strategy=${strategy}`);
     return data;
   });
   return Promise.all(requests);
@@ -763,11 +756,6 @@ async function reloadTechnical() {
     const suffix = suffixSelect.value;
     const strategy = state.currentStrategy;
     const data = await fetchJson(`/api/stock/technical?ticker=${encodeURIComponent(state.currentTicker)}&range=${state.currentRange}&suffix=${suffix}&strategy=${strategy}`);
-    if (data.error) {
-      showError(data.error);
-      showLoading(false);
-      return;
-    }
 
     state.technicalData = data;
     renderStockHeader(data);
@@ -871,7 +859,7 @@ function renderFearGreed(data) {
     return;
   }
 
-  fearGreedSection.classList.toggle('hidden', !toggleFearGreedSection.checked);
+  fearGreedSection.classList.remove('hidden');
   fearGreedValue.textContent = String(value);
   fearGreedLabel.textContent = formatFearGreedLabel(data.classification);
   fearGreedLabel.className = `fear-greed-label ${fearGreedToneClass(value)}`;
@@ -989,7 +977,20 @@ function formatBollingerBands(indicators, snapshot) {
   return `${formatMaybePrice(upper)} / ${formatMaybePrice(middle)} / ${formatMaybePrice(lower)}`;
 }
 
-async function fetchJson(url) { const response = await fetch(url); return response.json(); }
+async function fetchJson(url) {
+  const response = await fetch(url);
+  const payload = await response.json();
+
+  if (!response.ok || payload?.ok === false) {
+    const message = payload?.error?.message || '\uc694\uccad\uc744 \ucc98\ub9ac\ud558\uc9c0 \ubabb\ud588\uc2b5\ub2c8\ub2e4.';
+    const error = new Error(message);
+    error.status = payload?.error?.status || response.status;
+    error.code = payload?.error?.code || 'REQUEST_FAILED';
+    throw error;
+  }
+
+  return payload?.data ?? payload;
+}
 
 function escapeHtml(str) { return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
 function escapeAttr(str) { const value = String(str).trim(); if (!/^https?:\/\//i.test(value)) return '#'; return value.replace(/"/g, '%22'); }
@@ -1009,7 +1010,7 @@ function applyStaticLocalization() {
 }
 
 function setPanelTitles() {
-  const toggleTexts = ['\uc2e0\ud638 \uacc4\uc0b0 \uc124\uba85', 'Point-in-Time', 'Backtest', '\uc2dc\uc7a5 \uc2ec\ub9ac', '\ucc28\ud2b8\uc640 \uc9c0\ud45c'];
+  const toggleTexts = ['\uc2e0\ud638 \uacc4\uc0b0 \uc124\uba85', 'Point-in-Time', 'Backtest', '\ucc28\ud2b8\uc640 \uc9c0\ud45c', '\ubcf4\uc870 \uc815\ubcf4'];
   document.querySelectorAll('.section-toggle-text').forEach((node, index) => { if (toggleTexts[index]) node.textContent = toggleTexts[index]; });
   const titles = document.querySelectorAll('.historical-signal-title');
   if (titles[0]) titles[0].textContent = '\ud604\uc7ac \uc810\uc218\ub97c \uacc4\uc0b0\ud558\ub294 \ud575\uc2ec \uae30\uc900';

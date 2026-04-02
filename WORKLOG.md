@@ -113,6 +113,27 @@ Related commits:
 
 - `ed5156e` `Adopt lightweight charts for price view`
 
+### 9. API contract and smoke-test stabilization
+
+- Standardized API success and error envelopes.
+- Fixed canonical date parameter names:
+  - `snapshot_date`
+  - `start_date`
+  - `end_date`
+- Kept legacy aliases temporarily for compatibility.
+- Added minimum smoke tests for:
+  - Korean search resolution
+  - invalid ticker JSON error
+  - historical snapshot no-future-data behavior
+  - backtest response shape
+- Reduced main-screen density so the default flow is easier to follow:
+  - stock search
+  - current signal
+  - point-in-time
+  - backtest
+  - chart
+  - secondary info
+
 ## Important Review Feedback Recorded
 
 Claude Code review summary:

@@ -6,7 +6,8 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "node --watch server.js"
+    "dev": "node --watch server.js",
+    "test:smoke": "node --test test/smoke.test.js"
   },
   "dependencies": {
     "dotenv": "^17.3.1",
