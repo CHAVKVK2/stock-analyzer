@@ -2,6 +2,12 @@ import { sendError } from '../utils/apiResponse.js';
 
 export default function errorHandler(err, req, res, next) {
   const message = err?.message || '';
+  const status = err?.status;
+  const code = err?.code;
+
+  if (status && code && message) {
+    return sendError(res, status, code, message);
+  }
 
   if (
     message.includes('No fundamentals data') ||

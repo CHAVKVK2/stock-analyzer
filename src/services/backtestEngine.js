@@ -3,27 +3,38 @@ import { findTargetIndexOnOrBefore } from './indicators.js';
 
 const FORWARD_HORIZONS = [5, 10, 20];
 
+function createAppError(status, code, message) {
+  const error = new Error(message);
+  error.status = status;
+  error.code = code;
+  return error;
+}
+
 export function calculateBacktestRange(prices, startDate, endDate, dependencies) {
   if (!Array.isArray(prices) || prices.length === 0) {
-    throw new Error('\uac00\uaca9 \ub370\uc774\ud130\uac00 \uc5c6\uc2b5\ub2c8\ub2e4.');
+    throw createAppError(404, 'NOT_FOUND', '\uac00\uaca9 \ub370\uc774\ud130\uac00 \uc5c6\uc2b5\ub2c8\ub2e4.');
   }
 
   const start = normalizeDateString(startDate);
   const end = normalizeDateString(endDate);
 
   if (!start || !end) {
-    throw new Error('\uc720\ud6a8\ud55c \uc2dc\uc791\uc77c\uacfc \uc885\ub8cc\uc77c\uc774 \ud544\uc694\ud569\ub2c8\ub2e4.');
+    throw createAppError(400, 'INVALID_REQUEST', '\uc720\ud6a8\ud55c \uc2dc\uc791\uc77c\uacfc \uc885\ub8cc\uc77c\uc774 \ud544\uc694\ud569\ub2c8\ub2e4.');
   }
 
   if (start > end) {
-    throw new Error('\uc2dc\uc791\uc77c\uc774 \uc885\ub8cc\uc77c\ubcf4\ub2e4 \ub2a6\uc744 \uc218 \uc5c6\uc2b5\ub2c8\ub2e4.');
+    throw createAppError(400, 'INVALID_DATE_RANGE', '\uc2dc\uc791\uc77c\uc774 \uc885\ub8cc\uc77c\ubcf4\ub2e4 \ub2a6\uc744 \uc218 \uc5c6\uc2b5\ub2c8\ub2e4.');
   }
 
   const startIndex = prices.findIndex(price => price?.date && price.date >= start);
   const endIndex = findTargetIndexOnOrBefore(prices, end);
 
   if (startIndex === -1 || endIndex === -1 || startIndex > endIndex) {
-    throw new Error('\uc120\ud0dd\ud55c \uae30\uac04\uc5d0 \ud574\ub2f9\ud558\ub294 \uac00\uaca9 \ub370\uc774\ud130\ub97c \ucc3e\uc744 \uc218 \uc5c6\uc2b5\ub2c8\ub2e4.');
+    throw createAppError(
+      404,
+      'NO_DATA_IN_RANGE',
+      '\uc120\ud0dd\ud55c \uae30\uac04\uc5d0 \ud574\ub2f9\ud558\ub294 \uac00\uaca9 \ub370\uc774\ud130\ub97c \ucc3e\uc744 \uc218 \uc5c6\uc2b5\ub2c8\ub2e4. range \uac12\uc744 \ub354 \ub113\uac8c \uc120\ud0dd\ud574\uc8fc\uc138\uc694.'
+    );
   }
 
   const { analyzePrices, buildIndicatorSnapshot, analysisOptions = {} } = dependencies;

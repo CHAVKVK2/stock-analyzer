@@ -48,6 +48,7 @@
 - `range` optional, default `2y`
 - `suffix` optional, default `auto`
 - `strategy` optional, default `balanced`
+- if `snapshot_date` is outside the fetched `range`, return `404 NO_DATA_IN_RANGE`
 
 ### `/api/stock/backtest`
 
@@ -57,6 +58,7 @@
 - `range` optional, default `5y`
 - `suffix` optional, default `auto`
 - `strategy` optional, default `balanced`
+- if the requested period is outside the fetched `range`, return `404 NO_DATA_IN_RANGE`
 
 ### `/api/search`
 
