@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Stock Analyzer</title>
-  <link rel="stylesheet" href="/css/styles.css?v=20260402a" />
+  <link rel="stylesheet" href="/css/styles.css?v=20260403b" />
 </head>
 <body>
   <header class="header">
@@ -16,6 +16,11 @@
         </svg>
         <span>Stock Analyzer</span>
       </div>
+      <nav class="header-links" aria-label="사이트 정보">
+        <a href="/about">소개</a>
+        <a href="/contact">문의</a>
+        <a href="/privacy">개인정보처리방침</a>
+      </nav>
     </div>
   </header>
 
@@ -142,6 +147,7 @@
                 <h3 id="signalHeadline" class="signal-headline"></h3>
                 <span id="signalStrength" class="signal-strength"></span>
               </div>
+              <div id="profileBanner" class="signal-profile-banner hidden"></div>
             </div>
             <div id="marketBadges" class="market-badges"></div>
           </div>
@@ -402,28 +408,22 @@
                   <span class="legend-item"><span class="legend-dot" style="background:#d29922"></span> 거래량 MA20</span>
                 </div>
               </div>
-              <div class="chart-wrap">
-                <div id="priceChart" class="price-chart-surface"></div>
-                <div id="priceChartTooltip" class="lw-tooltip hidden"></div>
-              </div>
-            </div>
-
-            <div id="rsiChartCard" class="chart-card chart-card--compact hidden">
-              <div class="chart-header">
-                <span class="chart-title">RSI</span>
-              </div>
-              <div class="chart-wrap chart-wrap--compact">
-                <canvas id="rsiChart"></canvas>
-              </div>
-            </div>
-
-            <div id="macdChartCard" class="chart-card chart-card--compact hidden">
-              <div class="chart-header">
-                <span class="chart-title">MACD</span>
-              </div>
-              <div class="chart-wrap chart-wrap--compact">
-                <canvas id="macdChart"></canvas>
-              </div>
+                <div class="chart-wrap">
+                  <div class="chart-main-region">
+                    <div id="priceChart" class="price-chart-surface"></div>
+                    <div id="priceChartTooltip" class="lw-tooltip hidden"></div>
+                  </div>
+                  <div id="indicatorDock" class="chart-overlay-dock hidden">
+                    <div id="rsiChartCard" class="overlay-indicator-panel hidden">
+                      <div class="overlay-indicator-header">RSI</div>
+                      <canvas id="rsiChart" class="overlay-indicator-canvas"></canvas>
+                    </div>
+                    <div id="macdChartCard" class="overlay-indicator-panel hidden">
+                      <div class="overlay-indicator-header">MACD</div>
+                      <canvas id="macdChart" class="overlay-indicator-canvas"></canvas>
+                    </div>
+                  </div>
+                </div>
             </div>
 
             <div class="indicator-toggles">
@@ -535,10 +535,24 @@
     </section>
   </main>
 
-  <script src="https://unpkg.com/lightweight-charts@4.2.2/dist/lightweight-charts.standalone.production.js"></script>
+  <footer class="site-footer">
+    <div class="site-footer-inner">
+      <div>
+        <strong>Stock Analyzer</strong>
+        <p class="site-footer-copy">한국/미국 주식의 기술적 신호, Point-in-Time, 백테스트를 설명 가능한 기준으로 보여주는 분석 도구입니다.</p>
+      </div>
+      <nav class="site-footer-links" aria-label="푸터 링크">
+        <a href="/about">소개</a>
+        <a href="/contact">문의</a>
+        <a href="/privacy">개인정보처리방침</a>
+      </nav>
+    </div>
+  </footer>
+
+  <script src="https://unpkg.com/lightweight-charts@5.1.0/dist/lightweight-charts.standalone.production.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-  <script src="/js/charts.js?v=20260402a"></script>
-  <script src="/js/financials.js?v=20260402a"></script>
-  <script src="/js/app.js?v=20260402a"></script>
+  <script src="/js/charts.js?v=20260403b"></script>
+  <script src="/js/financials.js?v=20260403a"></script>
+  <script src="/js/app.js?v=20260403b"></script>
 </body>
 </html>

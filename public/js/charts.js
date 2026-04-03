@@ -14,6 +14,11 @@ const lightweightState = {
   resizeHandler: null,
   candleSeries: null,
   volumeSeries: null,
+  indicatorSeries: {
+    rsi: {},
+    macd: {},
+  },
+  indicatorPaneOrder: [],
   series: {
     ema20: null,
     ema50: null,
@@ -39,6 +44,7 @@ const lightweightState = {
   currency: 'USD',
   technicalData: null,
 };
+window.__lightweightState = lightweightState;
 
 const PRICE_LABELS = {
   close: '종가',
@@ -62,6 +68,20 @@ function destroyChart(id) {
   }
 }
 
+function destroyIndicatorChart(key) {
+  if (!lightweightState.chart) {
+    lightweightState.indicatorSeries[key] = {};
+    return;
+  }
+
+  Object.values(lightweightState.indicatorSeries[key] || {}).forEach(series => {
+    if (series) {
+      lightweightState.chart.removeSeries(series);
+    }
+  });
+  lightweightState.indicatorSeries[key] = {};
+}
+
 function destroyLightweightChart() {
   if (lightweightState.resizeHandler) {
     window.removeEventListener('resize', lightweightState.resizeHandler);
@@ -75,6 +95,9 @@ function destroyLightweightChart() {
   lightweightState.tooltip = null;
   lightweightState.candleSeries = null;
   lightweightState.volumeSeries = null;
+  destroyIndicatorChart('rsi');
+  destroyIndicatorChart('macd');
+  lightweightState.indicatorPaneOrder = [];
   lightweightState.series = {
     ema20: null,
     ema50: null,
@@ -115,25 +138,13 @@ function toggleSupportResistance(show) {
 }
 
 function toggleRSI(show) {
-  const card = document.getElementById('rsiChartCard');
-  if (!card) return;
-  card.classList.toggle('hidden', !show);
-  if (show && lightweightState.technicalData) {
-    buildRSIChart(lightweightState.technicalData);
-  } else {
-    destroyChart('rsi');
-  }
+  if (!lightweightState.technicalData) return;
+  syncIndicatorDock();
 }
 
 function toggleMACD(show) {
-  const card = document.getElementById('macdChartCard');
-  if (!card) return;
-  card.classList.toggle('hidden', !show);
-  if (show && lightweightState.technicalData) {
-    buildMACDChart(lightweightState.technicalData);
-  } else {
-    destroyChart('macd');
-  }
+  if (!lightweightState.technicalData) return;
+  syncIndicatorDock();
 }
 
 function toggleBacktestMarkers(show) {
@@ -148,25 +159,39 @@ function buildPriceChart(data) {
   const tooltip = document.getElementById('priceChartTooltip');
   if (!container || !window.LightweightCharts) return;
 
+  const {
+    createChart,
+    CrosshairMode,
+    CandlestickSeries,
+    HistogramSeries,
+    LineSeries,
+    LineStyle,
+  } = LightweightCharts;
+
   currentPriceChartMeta = {
     labels: data.prices.map(item => item.date),
     closes: data.prices.map(item => item.close),
     currency: data.meta.currency,
   };
 
-  const chart = LightweightCharts.createChart(container, {
+  const chart = createChart(container, {
     layout: {
       background: { color: '#0f172a' },
       textColor: '#9fb0cb',
       fontFamily: "'Segoe UI', 'Noto Sans KR', sans-serif",
       fontSize: 12,
+      panes: {
+        separatorColor: 'rgba(148, 163, 184, 0.12)',
+        separatorHoverColor: 'rgba(88, 166, 255, 0.28)',
+        enableResize: false,
+      },
     },
     grid: {
       vertLines: { color: 'rgba(148, 163, 184, 0.08)' },
       horzLines: { color: 'rgba(148, 163, 184, 0.08)' },
     },
     crosshair: {
-      mode: LightweightCharts.CrosshairMode.Normal,
+      mode: CrosshairMode.Normal,
       vertLine: {
         color: 'rgba(88, 166, 255, 0.4)',
         labelBackgroundColor: '#1f2937',
@@ -190,6 +215,7 @@ function buildPriceChart(data) {
     },
     handleScroll: { mouseWheel: true, pressedMouseMove: true, horzTouchDrag: true, vertTouchDrag: true },
     handleScale: { axisPressedMouseMove: true, mouseWheel: true, pinch: true },
+    autoSize: true,
   });
 
   lightweightState.chart = chart;
@@ -198,7 +224,7 @@ function buildPriceChart(data) {
   lightweightState.currency = data.meta.currency;
   lightweightState.technicalData = data;
 
-  const candleSeries = chart.addCandlestickSeries({
+  const candleSeries = chart.addSeries(CandlestickSeries, {
     upColor: '#3fb950',
     downColor: '#f85149',
     borderVisible: false,
@@ -207,7 +233,7 @@ function buildPriceChart(data) {
     priceLineColor: '#58a6ff',
   });
 
-  const volumeSeries = chart.addHistogramSeries({
+  const volumeSeries = chart.addSeries(HistogramSeries, {
     color: 'rgba(88, 166, 255, 0.35)',
     priceFormat: { type: 'volume' },
     priceScaleId: '',
@@ -241,19 +267,19 @@ function buildPriceChart(data) {
   lightweightState.priceData = priceData;
   lightweightState.volumeData = volumeData;
 
-  lightweightState.series.ema20 = createLineSeries(chart, '#f0883e', 2);
-  lightweightState.series.ema50 = createLineSeries(chart, '#bc8cff', 2);
-  lightweightState.series.sma200 = createLineSeries(chart, '#2ea043', 2, [6, 4]);
-  lightweightState.series.bbUpper = createLineSeries(chart, 'rgba(139, 148, 158, 0.45)', 1, [4, 4]);
-  lightweightState.series.bbMiddle = createLineSeries(chart, 'rgba(139, 148, 158, 0.8)', 1, [2, 2]);
-  lightweightState.series.bbLower = createLineSeries(chart, 'rgba(139, 148, 158, 0.45)', 1, [4, 4]);
-  lightweightState.series.volumeMA20 = chart.addLineSeries({
+  lightweightState.series.ema20 = createLineSeries(chart, '#f0883e', 2, false, 0);
+  lightweightState.series.ema50 = createLineSeries(chart, '#bc8cff', 2, false, 0);
+  lightweightState.series.sma200 = createLineSeries(chart, '#2ea043', 2, true, 0);
+  lightweightState.series.bbUpper = createLineSeries(chart, 'rgba(139, 148, 158, 0.45)', 1, true, 0);
+  lightweightState.series.bbMiddle = createLineSeries(chart, 'rgba(139, 148, 158, 0.8)', 1, true, 0);
+  lightweightState.series.bbLower = createLineSeries(chart, 'rgba(139, 148, 158, 0.45)', 1, true, 0);
+  lightweightState.series.volumeMA20 = chart.addSeries(LineSeries, {
     color: '#d29922',
     lineWidth: 1,
     priceScaleId: '',
     lastValueVisible: false,
     priceLineVisible: false,
-  });
+  }, 0);
 
   lightweightState.series.ema20.setData(buildLineData(data.prices, data.indicators.movingAverages.ema20));
   lightweightState.series.ema50.setData(buildLineData(data.prices, data.indicators.movingAverages.ema50));
@@ -269,27 +295,60 @@ function buildPriceChart(data) {
   attachPriceTooltip(data.prices);
 
   lightweightState.resizeHandler = () => {
-    if (!lightweightState.container || !lightweightState.chart) return;
-    const width = lightweightState.container.clientWidth;
-    const height = lightweightState.container.clientHeight || 360;
-    lightweightState.chart.applyOptions({ width, height });
+    resizeLightweightCharts();
   };
 
   window.addEventListener('resize', lightweightState.resizeHandler);
-  lightweightState.resizeHandler();
   syncBacktestMarkers();
-  toggleRSI(Boolean(document.getElementById('toggleRSI')?.checked));
-  toggleMACD(Boolean(document.getElementById('toggleMACD')?.checked));
+  syncIndicatorDock();
+  lightweightState.resizeHandler();
 }
 
-function createLineSeries(chart, color, lineWidth, lineStyle) {
-  return chart.addLineSeries({
+function resizeLightweightCharts() {
+  if (lightweightState.container && lightweightState.chart) {
+    lightweightState.chart.applyOptions({
+      width: lightweightState.container.clientWidth,
+      height: lightweightState.container.clientHeight || 380,
+    });
+  }
+}
+
+function syncIndicatorDock() {
+  const dock = document.getElementById('indicatorDock');
+  const rsiCard = document.getElementById('rsiChartCard');
+  const macdCard = document.getElementById('macdChartCard');
+  if (!dock || !rsiCard || !macdCard || !lightweightState.technicalData) return;
+
+  const showRSI = Boolean(document.getElementById('toggleRSI')?.checked);
+  const showMACD = Boolean(document.getElementById('toggleMACD')?.checked);
+
+  rsiCard.classList.toggle('hidden', !showRSI);
+  macdCard.classList.toggle('hidden', !showMACD);
+  dock.classList.toggle('hidden', !showRSI && !showMACD);
+
+  if (showRSI) {
+    buildRSIChartLegacy(lightweightState.technicalData);
+  } else {
+    destroyChart('rsi');
+  }
+
+  if (showMACD) {
+    buildMACDChartLegacy(lightweightState.technicalData);
+  } else {
+    destroyChart('macd');
+  }
+
+  requestAnimationFrame(() => resizeLightweightCharts());
+}
+
+function createLineSeries(chart, color, lineWidth, dashed = false, paneIndex = 0) {
+  return chart.addSeries(LightweightCharts.LineSeries, {
     color,
     lineWidth,
-    lineStyle: lineStyle ? LightweightCharts.LineStyle.LargeDashed : LightweightCharts.LineStyle.Solid,
+    lineStyle: dashed ? LightweightCharts.LineStyle.LargeDashed : LightweightCharts.LineStyle.Solid,
     lastValueVisible: false,
     priceLineVisible: false,
-  });
+  }, paneIndex);
 }
 
 function buildLineData(prices, values) {
@@ -300,25 +359,25 @@ function buildLineData(prices, values) {
 
 function buildLevelSeries(chart, prices, levels) {
   lightweightState.levelSeries.supports = (levels.supports || []).map(level => {
-    const series = chart.addLineSeries({
+    const series = chart.addSeries(LightweightCharts.LineSeries, {
       color: 'rgba(63, 185, 80, 0.35)',
       lineWidth: 1,
       lineStyle: LightweightCharts.LineStyle.Dashed,
       lastValueVisible: false,
       priceLineVisible: false,
-    });
+    }, 0);
     series.setData(prices.map(item => ({ time: toBusinessDay(item.date), value: level })));
     return series;
   });
 
   lightweightState.levelSeries.resistances = (levels.resistances || []).map(level => {
-    const series = chart.addLineSeries({
+    const series = chart.addSeries(LightweightCharts.LineSeries, {
       color: 'rgba(248, 81, 73, 0.35)',
       lineWidth: 1,
       lineStyle: LightweightCharts.LineStyle.Dashed,
       lastValueVisible: false,
       priceLineVisible: false,
-    });
+    }, 0);
     series.setData(prices.map(item => ({ time: toBusinessDay(item.date), value: level })));
     return series;
   });
@@ -332,11 +391,20 @@ function updateLightweightVisibility() {
 
 function syncBacktestMarkers() {
   if (!lightweightState.candleSeries) return;
-  if (!lightweightState.visible.backtestMarkers || !lightweightState.markerData.length) {
-    lightweightState.candleSeries.setMarkers([]);
+  const markerApi = LightweightCharts.createSeriesMarkers;
+  if (typeof markerApi !== 'function') {
+    if (typeof lightweightState.candleSeries.setMarkers === 'function') {
+      lightweightState.candleSeries.setMarkers(
+        lightweightState.visible.backtestMarkers ? lightweightState.markerData : []
+      );
+    }
     return;
   }
-  lightweightState.candleSeries.setMarkers(lightweightState.markerData);
+  if (!lightweightState.visible.backtestMarkers || !lightweightState.markerData.length) {
+    markerApi(lightweightState.candleSeries, []);
+    return;
+  }
+  markerApi(lightweightState.candleSeries, lightweightState.markerData);
 }
 
 function setBacktestMarkers(backtest) {
@@ -425,7 +493,7 @@ function buildBacktestChart(backtest) {
   });
 }
 
-function buildRSIChart(data) {
+function buildRSIChartLegacy(data) {
   destroyChart('rsi');
   const canvas = document.getElementById('rsiChart');
   if (!canvas || !window.Chart) return;
@@ -485,7 +553,7 @@ function buildRSIChart(data) {
   });
 }
 
-function buildMACDChart(data) {
+function buildMACDChartLegacy(data) {
   destroyChart('macd');
   const canvas = document.getElementById('macdChart');
   if (!canvas || !window.Chart) return;
@@ -589,6 +657,155 @@ function buildStrategyCompareChart(comparisons) {
       },
     },
   });
+}
+
+function rebuildIndicatorPanes() {
+  if (!lightweightState.chart || !lightweightState.technicalData) return;
+
+  destroyIndicatorChart('rsi');
+  destroyIndicatorChart('macd');
+  lightweightState.indicatorPaneOrder = [];
+
+  let nextPaneIndex = 1;
+  if (document.getElementById('toggleRSI')?.checked) {
+    buildRSIChart(lightweightState.technicalData, nextPaneIndex);
+    lightweightState.indicatorPaneOrder.push('rsi');
+    nextPaneIndex += 1;
+  }
+
+  if (document.getElementById('toggleMACD')?.checked) {
+    buildMACDChart(lightweightState.technicalData, nextPaneIndex);
+    lightweightState.indicatorPaneOrder.push('macd');
+  }
+
+  syncPaneLayout();
+  lightweightState.chart.timeScale().fitContent();
+  requestAnimationFrame(syncPaneLayout);
+  window.setTimeout(syncPaneLayout, 60);
+}
+
+function syncPaneLayout() {
+  const chartWrap = document.getElementById('priceChart')?.closest('.chart-wrap');
+  if (!chartWrap || !lightweightState.chart) return;
+
+  const mobile = window.innerWidth <= 720;
+  const totalHeight = mobile ? 420 : 520;
+  let paneHeights = [totalHeight];
+
+  if (lightweightState.indicatorPaneOrder.length === 1) {
+    paneHeights = lightweightState.indicatorPaneOrder[0] === 'rsi'
+      ? (mobile ? [272, 118] : [334, 156])
+      : (mobile ? [258, 132] : [318, 172]);
+  }
+
+  if (lightweightState.indicatorPaneOrder.length === 2) {
+    paneHeights = mobile ? [202, 82, 106] : [248, 96, 146];
+  }
+
+  chartWrap.style.height = `${totalHeight}px`;
+  chartWrap.style.minHeight = `${totalHeight}px`;
+
+  const panes = lightweightState.chart.panes?.() || [];
+  paneHeights.forEach((height, index) => {
+    panes[index]?.setHeight(height);
+  });
+}
+
+function buildRSIChart(data, paneIndex) {
+  const rsiSeries = lightweightState.chart.addSeries(LightweightCharts.LineSeries, {
+    color: '#bc8cff',
+    lineWidth: 2,
+    lastValueVisible: false,
+    priceLineVisible: false,
+    title: 'RSI',
+  });
+  const upperSeries = lightweightState.chart.addSeries(LightweightCharts.LineSeries, {
+    color: 'rgba(248, 81, 73, 0.42)',
+    lineWidth: 1,
+    lineStyle: LightweightCharts.LineStyle.Dashed,
+    lastValueVisible: false,
+    priceLineVisible: false,
+  });
+  const lowerSeries = lightweightState.chart.addSeries(LightweightCharts.LineSeries, {
+    color: 'rgba(63, 185, 80, 0.42)',
+    lineWidth: 1,
+    lineStyle: LightweightCharts.LineStyle.Dashed,
+    lastValueVisible: false,
+    priceLineVisible: false,
+  });
+
+  rsiSeries.moveToPane(paneIndex);
+  upperSeries.moveToPane(paneIndex);
+  lowerSeries.moveToPane(paneIndex);
+
+  rsiSeries.applyOptions({
+    priceFormat: {
+      type: 'price',
+      precision: 1,
+      minMove: 0.1,
+    },
+  });
+
+  rsiSeries.setData(buildLineData(data.prices, data.indicators.rsi || []));
+  upperSeries.setData(data.prices.map(item => ({ time: toBusinessDay(item.date), value: 70 })));
+  lowerSeries.setData(data.prices.map(item => ({ time: toBusinessDay(item.date), value: 30 })));
+
+  lightweightState.indicatorSeries.rsi = { rsiSeries, upperSeries, lowerSeries };
+}
+
+function buildMACDChart(data, paneIndex) {
+  const macd = data.indicators.macd || { macdLine: [], signalLine: [], histogram: [] };
+  const histogramSeries = lightweightState.chart.addSeries(LightweightCharts.HistogramSeries, {
+    lastValueVisible: false,
+    priceLineVisible: false,
+    title: 'MACD Hist',
+  });
+  const macdSeries = lightweightState.chart.addSeries(LightweightCharts.LineSeries, {
+    color: '#58a6ff',
+    lineWidth: 2,
+    lastValueVisible: false,
+    priceLineVisible: false,
+    title: 'MACD',
+  });
+  const signalSeries = lightweightState.chart.addSeries(LightweightCharts.LineSeries, {
+    color: '#f0883e',
+    lineWidth: 2,
+    lastValueVisible: false,
+    priceLineVisible: false,
+    title: 'Signal',
+  });
+
+  histogramSeries.moveToPane(paneIndex);
+  macdSeries.moveToPane(paneIndex);
+  signalSeries.moveToPane(paneIndex);
+
+  histogramSeries.applyOptions({
+    priceFormat: {
+      type: 'price',
+      precision: 3,
+      minMove: 0.001,
+    },
+  });
+
+  histogramSeries.setData(buildHistogramData(data.prices, macd.histogram || []));
+  macdSeries.setData(buildLineData(data.prices, macd.macdLine || []));
+  signalSeries.setData(buildLineData(data.prices, macd.signalLine || []));
+
+  lightweightState.indicatorSeries.macd = { histogramSeries, macdSeries, signalSeries };
+}
+
+function buildHistogramData(prices, values) {
+  return prices
+    .map((item, index) => {
+      const value = values[index];
+      if (value == null) return null;
+      return {
+        time: toBusinessDay(item.date),
+        value,
+        color: value >= 0 ? 'rgba(63, 185, 80, 0.55)' : 'rgba(248, 81, 73, 0.55)',
+      };
+    })
+    .filter(Boolean);
 }
 
 function buildBuyHoldCurve(results) {

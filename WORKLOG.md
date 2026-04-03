@@ -135,6 +135,16 @@ Related commits:
   - chart
   - secondary info
 
+### 10. Standard market-profile baseline
+
+- Added automatic profile selection:
+  - `kr_standard`
+  - `us_megacap_growth`
+  - `us_broad_large_cap`
+- Anchored the Korean profile to backtest baseline assumptions through:
+  - `2025-04-30`
+- Exposed profile metadata in API responses so the UI can explain which logic family is active.
+
 ## Important Review Feedback Recorded
 
 Claude Code review summary:

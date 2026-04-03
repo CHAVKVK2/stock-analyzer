@@ -10,7 +10,7 @@ import { getScoreWeights } from './scoreWeights.js';
 
 export function calculateSignalScores(prices, indicators, options = {}) {
   const context = buildScoreContext(prices, indicators);
-  const weights = getScoreWeights(options.strategy);
+  const weights = getScoreWeights(options.strategy, options.profile);
 
   const buyBreakdown = {
     trend: scoreTrendBuy(context, weights),

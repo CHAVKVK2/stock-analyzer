@@ -40,6 +40,7 @@
 - `range` optional, default `6mo`
 - `suffix` optional, default `auto`
 - `strategy` optional, default `balanced`
+- `profile` optional, default `auto`
 
 ### `/api/stock/historical-snapshot`
 
@@ -48,6 +49,7 @@
 - `range` optional, default `2y`
 - `suffix` optional, default `auto`
 - `strategy` optional, default `balanced`
+- `profile` optional, default `auto`
 - if `snapshot_date` is outside the fetched `range`, return `404 NO_DATA_IN_RANGE`
 
 ### `/api/stock/backtest`
@@ -58,6 +60,7 @@
 - `range` optional, default `5y`
 - `suffix` optional, default `auto`
 - `strategy` optional, default `balanced`
+- `profile` optional, default `auto`
 - if the requested period is outside the fetched `range`, return `404 NO_DATA_IN_RANGE`
 
 ### `/api/search`
@@ -94,6 +97,10 @@
 - `ticker`
 - `resolvedTicker`
 - `strategy`
+- `profile.key`
+- `profile.market`
+- `profile.style`
+- `profile.calibration`
 - `request`
 - `meta`
 - `prices`
@@ -105,6 +112,7 @@
 ### `/api/stock/historical-snapshot`
 
 - `request.snapshotDate`
+- `profile.key`
 - `dates.requested`
 - `dates.resolved`
 - `snapshot.date`
@@ -115,6 +123,7 @@
 
 - `request.startDate`
 - `request.endDate`
+- `profile.key`
 - `requestedRange`
 - `actualRange`
 - `summary`

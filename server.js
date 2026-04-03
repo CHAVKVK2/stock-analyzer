@@ -13,9 +13,15 @@ const __dirname = dirname(__filename);
 
 export function createApp() {
   const app = express();
+  const publicDir = join(__dirname, 'public');
+  const sendPublicPage = file => (req, res) => res.sendFile(join(publicDir, file));
 
   app.use(express.json());
-  app.use(express.static(join(__dirname, 'public')));
+  app.use(express.static(publicDir));
+
+  app.get('/about', sendPublicPage('about.html'));
+  app.get('/contact', sendPublicPage('contact.html'));
+  app.get('/privacy', sendPublicPage('privacy.html'));
 
   app.use('/api/stock', stockRoutes);
   app.use('/api/search', searchRoutes);
@@ -23,7 +29,7 @@ export function createApp() {
   app.use('/api/market', sentimentRoutes);
 
   app.get('*', (req, res) => {
-    res.sendFile(join(__dirname, 'public', 'index.html'));
+    res.sendFile(join(publicDir, 'index.html'));
   });
 
   app.use(errorHandler);

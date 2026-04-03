@@ -24,6 +24,7 @@ export function calculateTechnicalAnalysis(prices, options = {}) {
     signalScores,
     signalSummary,
     strategy: options.strategy || 'balanced',
+    profile: options.profile || 'us_broad_large_cap',
   };
 }
 

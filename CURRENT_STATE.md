@@ -61,6 +61,12 @@ This file is the quickest way to understand the live state of `stock-analyzer` w
   - canonical date parameters only
   - stable JSON success/error envelope
   - deprecated `signal-date` endpoint now returns 410
+- automatic market profiles
+  - KR standard
+  - US mega-cap growth
+  - US broad large-cap
+- KR profile calibration anchor
+  - fixed to backtest observations through `2025-04-30`
 - minimum smoke tests
 
 ## Current Chart State
@@ -121,10 +127,10 @@ This file is the quickest way to understand the live state of `stock-analyzer` w
 ## Best Next Steps
 
 1. Remove the deprecated `signal-date` endpoint after usage check
-2. Finish stabilizing the chart migration
-3. Clean remaining broken UI text
-4. Improve backtest realism
-5. If Korean-market data quality becomes a priority, design Kiwoom REST API integration
+2. Validate profile weights against a wider stock basket
+3. Finish stabilizing the chart migration
+4. Clean remaining broken UI text
+5. Improve backtest realism
 
 ## Suggested Resume Prompt
 

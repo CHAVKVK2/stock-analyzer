@@ -215,9 +215,37 @@ Why:
 - It matches the current web backend architecture better than `Kiwoom OpenAPI+`.
 - `OpenAPI+` is more Windows desktop oriented.
 
+## Signal Calibration Decisions
+
+### 17. Use market/style profiles instead of one universal baseline
+
+Decision:
+
+- Keep one engine structure, but apply different weight profiles for:
+  - `kr_standard`
+  - `us_megacap_growth`
+  - `us_broad_large_cap`
+
+Why:
+
+- Korea and the US do not behave identically.
+- `M7`-style mega-cap momentum names should not share the exact same baseline as broad large-cap stocks.
+- This is a more standard split than per-ticker optimization.
+
+### 18. Freeze Korean calibration anchor at 2025-04-30
+
+Decision:
+
+- Korean baseline logic should be anchored to backtest observations only through `2025-04-30`.
+
+Why:
+
+- Avoid overfitting the Korean profile to the more extended market phase after that point.
+- Keep the Korean baseline more conservative around breakout and near-resistance behavior.
+
 ## Sharing / Deployment Decisions
 
-### 17. Use Render as the main shareable site
+### 19. Use Render as the main shareable site
 
 Decision:
 
@@ -228,7 +256,7 @@ Why:
 - It is more durable than a local tunnel.
 - It does not require the local PC to stay on.
 
-### 18. Use ngrok only for temporary demos
+### 20. Use ngrok only for temporary demos
 
 Decision:
 
