@@ -1,67 +1,77 @@
-# Current State
+# CURRENT STATE
 
 ## Purpose
 
-This file is the fastest way to resume work on `stock-analyzer` in a new Codex session.
-Read this first before opening longer documents.
+This file is the quickest way to understand the live state of `stock-analyzer` without reading long chat history.
 
-## Current Product Snapshot
+## Current Product Summary
 
-- The app is a stock analysis dashboard with:
-  - real-time technical signal analysis
+- The app is a stock analysis web dashboard.
+- Main supported areas:
+  - current-day technical signal analysis
   - historical Point-in-Time signal lookup
   - date-range backtesting
-  - Korean and US stock search
+  - strategy comparison
   - financial statements
-  - fear and greed index
-- The current signal engine is best understood as:
-  - a trend-following, rule-based technical engine
-  - not yet a true quant prediction engine
+  - sentiment / fear-greed display
 
-## What Works Now
+## Current Public URLs
 
-- Korean stock-name search
-  - local alias catalog
-  - KRX fallback lookup
-- US stock ticker and company-name search
-- Current-day signal dashboard
+- Local:
+  - `http://localhost:3000`
+- Render:
+  - `https://stock-analyzer-gfac.onrender.com/`
+- ngrok:
+  - temporary only
+  - depends on local PC / local server / tunnel process
+
+## Current Engine Interpretation
+
+- Treat the engine as:
+  - trend-following
+  - rule-based
+  - explainable technical-analysis engine
+- Do not treat it as:
+  - AI forecasting engine
+  - full quant prediction model
+  - statistically validated probability model
+
+## Current Features That Work
+
+- Korean stock search
+  - local aliases
+  - KRX fallback
+- US stock search
+- technical indicators
   - RSI
   - MACD
   - Bollinger Bands
-  - moving averages
+  - EMA20 / EMA50 / SMA200
+  - ATR / ADX / OBV / volume ratio
   - support / resistance
-  - buy / sell scores
-  - reason / risk summary
-- Historical single-date signal lookup
-  - no future-data leakage
-- Date-range backtest
-  - long-only trade simulation
+- current-day buy / sell scoring
+- historical single-date signal lookup
+- backtest
+  - long-only
   - strategy modes
-  - backtest statistics
-  - entry / exit markers on chart
-- Strategy comparison UI
-  - balanced
-  - trend-following
-  - mean-reversion
-- Financial statement view
-- Temporary public sharing
-  - localhost
-  - ngrok free URL
-- Persistent hosted sharing
-  - Render web service
+  - entry / exit markers
+- financial statement view
+- Render deployment
+- API contract cleanup
+  - canonical date parameters only
+  - stable JSON success/error envelope
+  - deprecated `signal-date` endpoint now returns 410
+- minimum smoke tests
 
-## Current URLs
+## Current Chart State
 
-- Local: `http://localhost:3000`
-- Current ngrok tunnel:
-  - `https://dicrotic-gastrotomic-miranda.ngrok-free.dev`
-- Current Render service:
-  - `https://stock-analyzer-gfac.onrender.com/`
-
-Note:
-- The ngrok URL is temporary.
-- It only works while this PC, the local server, and ngrok are running.
-- The Render URL is more durable, but the free plan may sleep after inactivity.
+- Main price chart:
+  - `Lightweight Charts`
+- Supporting charts:
+  - some still use `Chart.js`
+- Current chart direction:
+  - move toward a more trading-style chart feel
+  - avoid replacing everything at once
 
 ## Current Important Files
 
@@ -69,8 +79,9 @@ Note:
 - `src/services/indicators.js`
 - `src/services/signalScoring.js`
 - `src/services/signalSummary.js`
-- `src/services/scoreWeights.js`
 - `src/services/backtestEngine.js`
+- `src/services/scoreWeights.js`
+- `src/services/yahooFinanceService.js`
 - `src/routes/stockRoutes.js`
 - `public/index.html`
 - `public/js/app.js`
@@ -80,61 +91,41 @@ Note:
 - `render.yaml`
 - `RENDER_DEPLOY.md`
 
-## Current Architecture Summary
+## Current Known Issues
 
-- Backend
-  - indicators are calculated in dedicated service files
-  - scoring weights are extracted into constants
-  - backtest engine is split out from the main technical service
-- Frontend
-  - still mostly orchestrated by `public/js/app.js`
-  - chart rendering lives in `public/js/charts.js`
-- Product shape
-  - technical analysis mode is the strongest area today
-  - backtest mode is working but still needs better explanation and realism
-
-## Known Gaps
-
-- Some Korean text and encoding cleanup may still be incomplete in edge UI areas.
+- Some visible text still has encoding cleanup left.
+- Range switching and chart migration need continued stabilization after the `Lightweight Charts` move.
 - Backtest is still simplified:
   - no slippage
   - no commission
   - no taxes
-- The engine explains current signal conditions well, but does not yet show:
-  - setup probability
-  - forward return distribution
-  - regime-based outcome stats
-- `public/js/app.js` is still larger than ideal.
-- Render free can sleep after inactivity, so the first response may be slow.
+- `public/js/app.js` is still large.
+- only the deprecated `signal-date` endpoint remains as a temporary compatibility shim
 
-## Current Product Interpretation
+## Current Sharing / Deployment Reality
 
-- Use the current engine for:
-  - signal reading
-  - trend-following interpretation
-  - historical inspection
-  - basic strategy comparison
-- Do not describe it as:
-  - AI prediction
-  - machine-learning forecasting
-  - statistically validated quant model
+- Render is the main shareable URL.
+- Render free can sleep after inactivity, so the first request can be slow.
+- ngrok is only for temporary local demos.
+
+## Current External Data Direction
+
+- US / general data source:
+  - Yahoo Finance
+- Korean stock-name resolution:
+  - local aliases + KRX fallback
+- Korean chart-data direction under consideration:
+  - Kiwoom REST API
+- Naver Finance is not the preferred long-term backend because it is closer to non-official web-data usage.
 
 ## Best Next Steps
 
-1. Add setup outcome statistics
-   - 5-day / 10-day / 20-day forward outcome stats after selected signal conditions
-2. Improve backtest realism
-   - commission
-   - slippage
-   - optional sell tax
-3. Split the UI more clearly into:
-   - technical analysis
-   - backtest / probability
-   - financial statements
-4. Continue cleaning remaining text and encoding issues
+1. Remove the deprecated `signal-date` endpoint after usage check
+2. Finish stabilizing the chart migration
+3. Clean remaining broken UI text
+4. Improve backtest realism
+5. If Korean-market data quality becomes a priority, design Kiwoom REST API integration
 
-## If Starting Fresh In A New Session
-
-Suggested prompt:
+## Suggested Resume Prompt
 
 `stock-analyzer latest state 기준으로 이어서 작업해줘. 먼저 CURRENT_STATE.md, DECISIONS.md, WORKLOG.md를 읽고 다음 작업부터 진행해줘.`

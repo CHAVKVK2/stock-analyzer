@@ -3,6 +3,7 @@ import { resolveTickerAsync } from '../services/tickerResolver.js';
 import { getPriceHistory, getFinancials } from '../services/yahooFinanceService.js';
 import { calculateBacktest, calculateTechnicalAnalysis, calculateTechnicalAnalysisForDate } from '../services/technicalService.js';
 import { SUPPORTED_STRATEGIES } from '../services/scoreWeights.js';
+import { sendError, sendSuccess } from '../utils/apiResponse.js';
 
 const router = Router();
 const VALID_RANGES = new Set(['1mo', '3mo', '6mo', '1y', '2y', '5y']);
@@ -11,7 +12,34 @@ function getStrategy(strategy) {
   return SUPPORTED_STRATEGIES.includes(strategy) ? strategy : 'balanced';
 }
 
-function buildHistoricalSignalResponse({ ticker, resolvedTicker, datedAnalysis, strategy }) {
+function parseSnapshotDate(query) {
+  return query.snapshot_date || null;
+}
+
+function parseBacktestDates(query) {
+  return {
+    startDate: query.start_date || null,
+    endDate: query.end_date || null,
+  };
+}
+
+function validateTicker(ticker, res) {
+  if (!ticker) {
+    sendError(res, 400, 'INVALID_REQUEST', 'ticker \ud30c\ub77c\ubbf8\ud130\uac00 \ud544\uc694\ud569\ub2c8\ub2e4.');
+    return false;
+  }
+  return true;
+}
+
+function validateRange(range, res) {
+  if (!VALID_RANGES.has(range)) {
+    sendError(res, 400, 'INVALID_RANGE', `\uc9c0\uc6d0\ud558\uc9c0 \uc54a\ub294 range \uac12\uc785\ub2c8\ub2e4: ${range}`);
+    return false;
+  }
+  return true;
+}
+
+function buildHistoricalSignalPayload({ ticker, resolvedTicker, datedAnalysis, strategy, range, suffix, canonicalPath }) {
   const signal = datedAnalysis.signalSummary.signal === 'NEUTRAL'
     ? 'HOLD'
     : datedAnalysis.signalSummary.signal;
@@ -20,6 +48,16 @@ function buildHistoricalSignalResponse({ ticker, resolvedTicker, datedAnalysis, 
     ticker,
     resolvedTicker,
     strategy,
+    request: {
+      endpoint: canonicalPath,
+      range,
+      suffix,
+      snapshotDate: datedAnalysis.requestedDate,
+    },
+    dates: {
+      requested: datedAnalysis.requestedDate,
+      resolved: datedAnalysis.actualDate,
+    },
     requestedDate: datedAnalysis.requestedDate,
     actualDate: datedAnalysis.actualDate,
     price: datedAnalysis.price,
@@ -42,28 +80,69 @@ function buildHistoricalSignalResponse({ ticker, resolvedTicker, datedAnalysis, 
   };
 }
 
+async function handleHistoricalSnapshot(req, res, next, canonicalPath) {
+  try {
+    const { ticker, range = '2y', suffix = 'auto', strategy = 'balanced' } = req.query;
+    const snapshotDate = parseSnapshotDate(req.query);
+
+    if (!validateTicker(ticker, res)) return;
+    if (!snapshotDate) {
+      sendError(res, 400, 'INVALID_REQUEST', 'snapshot_date \ud30c\ub77c\ubbf8\ud130\uac00 \ud544\uc694\ud569\ub2c8\ub2e4.');
+      return;
+    }
+    if (!validateRange(range, res)) return;
+
+    const normalizedStrategy = getStrategy(strategy);
+    const resolvedTicker = await resolveTickerAsync(ticker, suffix);
+    const priceData = await getPriceHistory(resolvedTicker, range);
+    const datedAnalysis = calculateTechnicalAnalysisForDate(priceData.prices, snapshotDate, { strategy: normalizedStrategy });
+
+    sendSuccess(
+      res,
+      buildHistoricalSignalPayload({
+        ticker,
+        resolvedTicker,
+        datedAnalysis,
+        strategy: normalizedStrategy,
+        range,
+        suffix,
+        canonicalPath,
+      }),
+      { endpoint: canonicalPath }
+    );
+  } catch (err) {
+    next(err);
+  }
+}
+
 router.get('/technical', async (req, res, next) => {
   try {
     const { ticker, range = '6mo', suffix = 'auto', strategy = 'balanced' } = req.query;
-    if (!ticker) return res.status(400).json({ error: '종목 코드(ticker) 파라미터가 필요합니다.' });
-    if (!VALID_RANGES.has(range)) return res.status(400).json({ error: `유효하지 않은 range 값입니다: ${range}` });
+
+    if (!validateTicker(ticker, res)) return;
+    if (!validateRange(range, res)) return;
 
     const normalizedStrategy = getStrategy(strategy);
     const resolvedTicker = await resolveTickerAsync(ticker, suffix);
     const priceData = await getPriceHistory(resolvedTicker, range);
     const analysis = calculateTechnicalAnalysis(priceData.prices, { strategy: normalizedStrategy });
 
-    res.json({
+    sendSuccess(res, {
       ticker,
       resolvedTicker,
       strategy: normalizedStrategy,
+      request: {
+        endpoint: '/api/stock/technical',
+        range,
+        suffix,
+      },
       meta: priceData.meta,
       prices: priceData.prices,
       indicators: analysis.indicators,
       marketState: analysis.marketState,
       signalScores: analysis.signalScores,
       signalSummary: analysis.signalSummary,
-    });
+    }, { endpoint: '/api/stock/technical' });
   } catch (err) {
     next(err);
   }
@@ -72,80 +151,68 @@ router.get('/technical', async (req, res, next) => {
 router.get('/financials', async (req, res, next) => {
   try {
     const { ticker, suffix = 'auto' } = req.query;
-    if (!ticker) return res.status(400).json({ error: '종목 코드(ticker) 파라미터가 필요합니다.' });
+    if (!validateTicker(ticker, res)) return;
 
     const resolvedTicker = await resolveTickerAsync(ticker, suffix);
     const data = await getFinancials(resolvedTicker);
-    res.json(data);
+
+    sendSuccess(res, {
+      ticker,
+      resolvedTicker,
+      request: {
+        endpoint: '/api/stock/financials',
+        suffix,
+      },
+      ...data,
+    }, { endpoint: '/api/stock/financials' });
   } catch (err) {
     next(err);
   }
 });
 
-router.get('/signal-date', async (req, res, next) => {
-  try {
-    const { ticker, date, range = '2y', suffix = 'auto', strategy = 'balanced' } = req.query;
-    if (!ticker) return res.status(400).json({ error: '종목 코드(ticker) 파라미터가 필요합니다.' });
-    if (!date) return res.status(400).json({ error: '날짜(date) 파라미터가 필요합니다.' });
-    if (!VALID_RANGES.has(range)) return res.status(400).json({ error: `유효하지 않은 range 값입니다: ${range}` });
-
-    const normalizedStrategy = getStrategy(strategy);
-    const resolvedTicker = await resolveTickerAsync(ticker, suffix);
-    const priceData = await getPriceHistory(resolvedTicker, range);
-    const datedAnalysis = calculateTechnicalAnalysisForDate(priceData.prices, date, { strategy: normalizedStrategy });
-
-    res.json(buildHistoricalSignalResponse({
-      ticker,
-      resolvedTicker,
-      datedAnalysis,
-      strategy: normalizedStrategy,
-    }));
-  } catch (err) {
-    next(err);
-  }
+router.get('/signal-date', async (req, res) => {
+  sendError(
+    res,
+    410,
+    'DEPRECATED_ENDPOINT',
+    'signal-date \uc5d4\ub4dc\ud3ec\uc778\ud2b8\ub294 \ub354 \uc774\uc0c1 \uc0ac\uc6a9\ud558\uc9c0 \uc54a\uc2b5\ub2c8\ub2e4. /api/stock/historical-snapshot?snapshot_date=YYYY-MM-DD \ub97c \uc0ac\uc6a9\ud574\uc8fc\uc138\uc694.'
+  );
 });
 
 router.get('/historical-snapshot', async (req, res, next) => {
-  try {
-    const { ticker, target_date: targetDate, range = '2y', suffix = 'auto', strategy = 'balanced' } = req.query;
-    if (!ticker) return res.status(400).json({ error: 'ticker 파라미터가 필요합니다.' });
-    if (!targetDate) return res.status(400).json({ error: 'target_date 파라미터가 필요합니다.' });
-    if (!VALID_RANGES.has(range)) return res.status(400).json({ error: `유효하지 않은 range 값입니다: ${range}` });
-
-    const normalizedStrategy = getStrategy(strategy);
-    const resolvedTicker = await resolveTickerAsync(ticker, suffix);
-    const priceData = await getPriceHistory(resolvedTicker, range);
-    const datedAnalysis = calculateTechnicalAnalysisForDate(priceData.prices, targetDate, { strategy: normalizedStrategy });
-
-    res.json(buildHistoricalSignalResponse({
-      ticker,
-      resolvedTicker,
-      datedAnalysis,
-      strategy: normalizedStrategy,
-    }));
-  } catch (err) {
-    next(err);
-  }
+  return handleHistoricalSnapshot(req, res, next, '/api/stock/historical-snapshot');
 });
 
 router.get('/backtest', async (req, res, next) => {
   try {
-    const { ticker, startDate, endDate, range = '5y', suffix = 'auto', strategy = 'balanced' } = req.query;
-    if (!ticker) return res.status(400).json({ error: '종목 코드(ticker) 파라미터가 필요합니다.' });
-    if (!startDate || !endDate) return res.status(400).json({ error: '시작일(startDate)과 종료일(endDate)이 필요합니다.' });
-    if (!VALID_RANGES.has(range)) return res.status(400).json({ error: `유효하지 않은 range 값입니다: ${range}` });
+    const { ticker, range = '5y', suffix = 'auto', strategy = 'balanced' } = req.query;
+    const { startDate, endDate } = parseBacktestDates(req.query);
+
+    if (!validateTicker(ticker, res)) return;
+    if (!startDate || !endDate) {
+      sendError(res, 400, 'INVALID_REQUEST', 'start_date\uc640 end_date \ud30c\ub77c\ubbf8\ud130\uac00 \ud544\uc694\ud569\ub2c8\ub2e4.');
+      return;
+    }
+    if (!validateRange(range, res)) return;
 
     const normalizedStrategy = getStrategy(strategy);
     const resolvedTicker = await resolveTickerAsync(ticker, suffix);
     const priceData = await getPriceHistory(resolvedTicker, range);
     const backtest = calculateBacktest(priceData.prices, startDate, endDate, { strategy: normalizedStrategy });
 
-    res.json({
+    sendSuccess(res, {
       ticker,
       resolvedTicker,
       strategy: normalizedStrategy,
+      request: {
+        endpoint: '/api/stock/backtest',
+        range,
+        suffix,
+        startDate,
+        endDate,
+      },
       ...backtest,
-    });
+    }, { endpoint: '/api/stock/backtest' });
   } catch (err) {
     next(err);
   }

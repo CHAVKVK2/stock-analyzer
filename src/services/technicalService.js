@@ -4,6 +4,13 @@ import { buildScoreContext, calculateSignalScores } from './signalScoring.js';
 import { buildSignalSummary } from './signalSummary.js';
 import { avg, isNumber } from './technicalUtils.js';
 
+function createAppError(status, code, message) {
+  const error = new Error(message);
+  error.status = status;
+  error.code = code;
+  return error;
+}
+
 export function calculateTechnicalAnalysis(prices, options = {}) {
   const indicators = calculateIndicators(prices);
   const marketState = evaluateMarketState(prices, indicators);
@@ -22,12 +29,16 @@ export function calculateTechnicalAnalysis(prices, options = {}) {
 
 export function calculateTechnicalAnalysisForDate(prices, requestedDate, options = {}) {
   if (!Array.isArray(prices) || prices.length === 0) {
-    throw new Error('가격 데이터가 없습니다.');
+    throw createAppError(404, 'NOT_FOUND', '\uac00\uaca9 \ub370\uc774\ud130\uac00 \uc5c6\uc2b5\ub2c8\ub2e4.');
   }
 
   const targetIndex = findTargetIndexOnOrBefore(prices, requestedDate);
   if (targetIndex === -1) {
-    throw new Error('선택한 날짜 이전의 가격 데이터를 찾을 수 없습니다.');
+    throw createAppError(
+      404,
+      'NO_DATA_IN_RANGE',
+      '\uc120\ud0dd\ud55c \ub0a0\uc9dc \uc774\uc804\uc758 \uac00\uaca9 \ub370\uc774\ud130\ub97c \ucc3e\uc744 \uc218 \uc5c6\uc2b5\ub2c8\ub2e4. range \uac12\uc744 \ub354 \ub113\uac8c \uc120\ud0dd\ud574\uc8fc\uc138\uc694.'
+    );
   }
 
   const slicedPrices = prices.slice(0, targetIndex + 1);
@@ -82,8 +93,10 @@ function evaluateMarketState(prices, indicators) {
 
 function buildIndicatorSnapshot(prices, indicators) {
   const context = buildScoreContext(prices, indicators);
+  const latestPrice = prices.at(-1);
 
   return {
+    date: latestPrice?.date ?? null,
     close: context.lastClose,
     rsi: context.rsi,
     macd: context.macd,

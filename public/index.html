@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Stock Analyzer</title>
-  <link rel="stylesheet" href="/css/styles.css?v=20260401g" />
+  <link rel="stylesheet" href="/css/styles.css?v=20260402a" />
 </head>
 <body>
   <header class="header">
@@ -45,6 +45,7 @@
             조회
           </button>
         </div>
+
         <div class="strategy-row">
           <label class="strategy-label" for="strategySelect">전략</label>
           <select id="strategySelect" class="strategy-select">
@@ -53,6 +54,38 @@
             <option value="mean_reversion">평균회귀형</option>
           </select>
         </div>
+
+        <div class="focus-guide">
+          <div class="focus-step">
+            <span class="focus-step-index">1</span>
+            <div>
+              <strong>종목 검색</strong>
+              <p>관심 종목이나 티커를 입력합니다.</p>
+            </div>
+          </div>
+          <div class="focus-step">
+            <span class="focus-step-index">2</span>
+            <div>
+              <strong>현재 신호 확인</strong>
+              <p>현재 시점의 매수·매도 점수와 이유를 먼저 봅니다.</p>
+            </div>
+          </div>
+          <div class="focus-step">
+            <span class="focus-step-index">3</span>
+            <div>
+              <strong>과거 시점 점검</strong>
+              <p>특정 날짜 기준으로 같은 엔진을 다시 돌려봅니다.</p>
+            </div>
+          </div>
+          <div class="focus-step">
+            <span class="focus-step-index">4</span>
+            <div>
+              <strong>백테스트 실행</strong>
+              <p>기간 단위 성과와 실제 진입·청산 기록을 확인합니다.</p>
+            </div>
+          </div>
+        </div>
+
         <div id="autocomplete" class="autocomplete hidden"></div>
       </div>
     </section>
@@ -147,11 +180,11 @@
             <div class="signal-panel">
               <div class="signal-panel-title">매수 점수</div>
               <ul class="signal-list">
-                <li>이동평균선 정배열과 가격 위치를 함께 봅니다.</li>
-                <li>MACD, RSI, 히스토그램으로 모멘텀을 확인합니다.</li>
-                <li>거래량 배수와 OBV로 신호의 신뢰도를 보강합니다.</li>
-                <li>지지선 근처 반등과 저항 돌파는 가산점으로 반영합니다.</li>
-                <li>ATR과 손익비로 과도한 위험은 감점합니다.</li>
+                <li>이동평균선 정렬과 가격 위치를 먼저 봅니다.</li>
+                <li>MACD, RSI, 스토캐스틱으로 모멘텀을 확인합니다.</li>
+                <li>거래량 배수와 OBV로 신호의 힘을 보강합니다.</li>
+                <li>지지선 반등과 저항선 돌파를 위치 점수로 반영합니다.</li>
+                <li>ATR과 손익비가 불리하면 감점합니다.</li>
               </ul>
             </div>
 
@@ -159,20 +192,20 @@
               <div class="signal-panel-title">매도 점수</div>
               <ul class="signal-list">
                 <li>이동평균선 역배열과 지지선 이탈을 중요하게 봅니다.</li>
-                <li>MACD 데드크로스와 약한 RSI 흐름을 반영합니다.</li>
+                <li>MACD 데드크로스와 약해진 RSI를 함께 반영합니다.</li>
                 <li>하락 구간 거래량 증가와 OBV 약세를 확인합니다.</li>
-                <li>과도한 하락 뒤의 기술적 반등 가능성은 감점합니다.</li>
-                <li>추세 강도가 낮으면 신호를 보수적으로 해석합니다.</li>
+                <li>과매도 이후의 기술적 반등 가능성은 감점합니다.</li>
+                <li>추세 강도가 약하면 보수적으로 해석합니다.</li>
               </ul>
             </div>
 
             <div class="signal-panel">
               <div class="signal-panel-title">전략 모드 차이</div>
               <ul class="signal-list">
-                <li>균형형: 추세, 모멘텀, 위치를 고르게 반영합니다.</li>
-                <li>추세추종형: 정배열, ADX, 거래량, 돌파를 더 강하게 봅니다.</li>
-                <li>평균회귀형: 과매도 반등, 지지선, 되돌림 구간을 더 중시합니다.</li>
-                <li>Point-in-Time과 Backtest는 선택 날짜까지의 데이터만 사용합니다.</li>
+                <li>균형형은 추세, 모멘텀, 위치를 고르게 반영합니다.</li>
+                <li>추세추종형은 정배열, ADX, 거래량 돌파를 더 강하게 봅니다.</li>
+                <li>평균회귀형은 과매도 반등, 지지선, 눌림목 구간을 더 중시합니다.</li>
+                <li>과거 시점과 백테스트도 같은 규칙으로 계산합니다.</li>
               </ul>
             </div>
           </div>
@@ -257,7 +290,7 @@
             <div>
               <div class="historical-signal-eyebrow">Backtest</div>
               <h3 class="historical-signal-title">날짜 구간 백테스트</h3>
-              <p class="historical-signal-note">선택한 전략 기준으로 구간별 신호를 계산하고 실제 진입/청산 기록을 요약합니다.</p>
+              <p class="historical-signal-note">선택한 전략 기준으로 구간별 신호를 계산하고 실제 진입·청산 기록을 요약합니다.</p>
             </div>
             <div class="historical-signal-controls">
               <input type="date" id="backtestStartDate" class="historical-date-input" />
@@ -284,6 +317,7 @@
             </div>
 
             <div id="backtestStrategyCompare" class="strategy-compare-wrap"></div>
+
             <div class="chart-card strategy-compare-chart-card">
               <div class="chart-header">
                 <span class="chart-title">전략별 누적 수익률 비교</span>
@@ -340,50 +374,6 @@
 
         <div class="section-toggle-row">
           <label class="section-toggle-control">
-            <input type="checkbox" id="toggleFearGreedSection" checked />
-            <span class="section-toggle-box"></span>
-            <span class="section-toggle-text">시장 심리</span>
-          </label>
-        </div>
-
-        <section id="fearGreedSection" class="fear-greed-card">
-          <div class="fear-greed-header">
-            <div>
-              <div class="fear-greed-eyebrow">시장 심리</div>
-              <h3 class="fear-greed-title">공포탐욕지수</h3>
-            </div>
-            <span id="fearGreedLabel" class="fear-greed-label"></span>
-          </div>
-          <div class="fear-greed-body">
-            <div class="fear-greed-score-wrap">
-              <div id="fearGreedValue" class="fear-greed-value">-</div>
-              <div id="fearGreedMeta" class="fear-greed-meta"></div>
-            </div>
-            <div class="fear-greed-scale">
-              <div class="fear-greed-scale-bar">
-                <div id="fearGreedFill" class="fear-greed-scale-fill"></div>
-              </div>
-              <div class="fear-greed-scale-labels">
-                <span>극도의 공포</span>
-                <span>중립</span>
-                <span>극도의 탐욕</span>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section id="newsSection" class="news-section hidden">
-          <div class="news-header">
-            <h3 class="news-title">관련 뉴스</h3>
-            <span id="newsLoading" class="news-spinner hidden">
-              <span class="spinner-sm"></span>
-            </span>
-          </div>
-          <div id="newsList" class="news-list"></div>
-        </section>
-
-        <div class="section-toggle-row">
-          <label class="section-toggle-control">
             <input type="checkbox" id="toggleChartSection" checked />
             <span class="section-toggle-box"></span>
             <span class="section-toggle-text">차트와 지표</span>
@@ -406,10 +396,10 @@
               <div class="chart-header">
                 <span class="chart-title">주가 흐름</span>
                 <div class="chart-legend">
-                  <span class="legend-item"><span class="legend-dot" style="background:#58a6ff"></span>종가</span>
-                  <span class="legend-item"><span class="legend-dot" style="background:#f0883e"></span>이동평균선</span>
-                  <span class="legend-item"><span class="legend-dot" style="background:#8b949e"></span>볼린저 밴드</span>
-                  <span class="legend-item"><span class="legend-dot" style="background:#d29922"></span>거래량 MA20</span>
+                  <span class="legend-item"><span class="legend-dot" style="background:#58a6ff"></span> 종가</span>
+                  <span class="legend-item"><span class="legend-dot" style="background:#f0883e"></span> 이동평균선</span>
+                  <span class="legend-item"><span class="legend-dot" style="background:#8b949e"></span> 볼린저 밴드</span>
+                  <span class="legend-item"><span class="legend-dot" style="background:#d29922"></span> 거래량 MA20</span>
                 </div>
               </div>
               <div class="chart-wrap">
@@ -471,6 +461,52 @@
             </div>
           </div>
         </div>
+
+        <div class="section-toggle-row">
+          <label class="section-toggle-control">
+            <input type="checkbox" id="toggleSecondaryInfoSection" />
+            <span class="section-toggle-box"></span>
+            <span class="section-toggle-text">보조 정보</span>
+          </label>
+        </div>
+
+        <div id="secondaryInfoSection" class="secondary-info-section hidden">
+          <section id="fearGreedSection" class="fear-greed-card hidden">
+            <div class="fear-greed-header">
+              <div>
+                <div class="fear-greed-eyebrow">시장 심리</div>
+                <h3 class="fear-greed-title">공포탐욕지수</h3>
+              </div>
+              <span id="fearGreedLabel" class="fear-greed-label"></span>
+            </div>
+            <div class="fear-greed-body">
+              <div class="fear-greed-score-wrap">
+                <div id="fearGreedValue" class="fear-greed-value">-</div>
+                <div id="fearGreedMeta" class="fear-greed-meta"></div>
+              </div>
+              <div class="fear-greed-scale">
+                <div class="fear-greed-scale-bar">
+                  <div id="fearGreedFill" class="fear-greed-scale-fill"></div>
+                </div>
+                <div class="fear-greed-scale-labels">
+                  <span>극도의 공포</span>
+                  <span>중립</span>
+                  <span>극도의 탐욕</span>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section id="newsSection" class="news-section hidden">
+            <div class="news-header">
+              <h3 class="news-title">관련 뉴스</h3>
+              <span id="newsLoading" class="news-spinner hidden">
+                <span class="spinner-sm"></span>
+              </span>
+            </div>
+            <div id="newsList" class="news-list"></div>
+          </section>
+        </div>
       </div>
 
       <div id="tab-financials" class="tab-content hidden">
@@ -501,8 +537,8 @@
 
   <script src="https://unpkg.com/lightweight-charts@4.2.2/dist/lightweight-charts.standalone.production.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-  <script src="/js/charts.js?v=20260401g"></script>
-  <script src="/js/financials.js?v=20260401g"></script>
-  <script src="/js/app.js?v=20260401g"></script>
+  <script src="/js/charts.js?v=20260402a"></script>
+  <script src="/js/financials.js?v=20260402a"></script>
+  <script src="/js/app.js?v=20260402a"></script>
 </body>
 </html>
