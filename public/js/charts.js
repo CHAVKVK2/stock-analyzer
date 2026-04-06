@@ -31,11 +31,14 @@ const lightweightState = {
     bollinger: false,
     movingAverages: false,
     supportResistance: true,
+    rsi: false,
+    macd: false,
     backtestMarkers: false,
   },
   priceData: [],
   volumeData: [],
   markerData: [],
+  markerPrimitive: null,
   currency: 'USD',
   technicalData: null,
 };
@@ -88,6 +91,7 @@ function destroyLightweightChart() {
   lightweightState.priceData = [];
   lightweightState.volumeData = [];
   lightweightState.markerData = [];
+  lightweightState.markerPrimitive = null;
 }
 
 function toggleBollingerBands(show) {
@@ -97,6 +101,7 @@ function toggleBollingerBands(show) {
       lightweightState.series[key].applyOptions({ visible: show });
     }
   });
+  syncFallbackPriceVisibility();
 }
 
 function toggleMovingAverages(show) {
@@ -106,51 +111,28 @@ function toggleMovingAverages(show) {
       lightweightState.series[key].applyOptions({ visible: show });
     }
   });
+  syncFallbackPriceVisibility();
 }
 
 function toggleSupportResistance(show) {
   lightweightState.visible.supportResistance = show;
   [...lightweightState.levelSeries.supports, ...lightweightState.levelSeries.resistances]
     .forEach(series => series.applyOptions({ visible: show }));
+  syncFallbackPriceVisibility();
 }
 
 function toggleRSI(show) {
-  const card = document.getElementById('rsiChartCard');
-  if (!card) return;
-  card.classList.toggle('hidden', !show);
-  syncIndicatorDockVisibility();
-  if (show && lightweightState.technicalData) {
-    buildRSIChart(lightweightState.technicalData);
-  } else {
-    destroyChart('rsi');
-  }
+  lightweightState.visible.rsi = show;
 }
 
 function toggleMACD(show) {
-  const card = document.getElementById('macdChartCard');
-  if (!card) return;
-  card.classList.toggle('hidden', !show);
-  syncIndicatorDockVisibility();
-  if (show && lightweightState.technicalData) {
-    buildMACDChart(lightweightState.technicalData);
-  } else {
-    destroyChart('macd');
-  }
+  lightweightState.visible.macd = show;
 }
 
 function toggleBacktestMarkers(show) {
   lightweightState.visible.backtestMarkers = show;
   syncBacktestMarkers();
-}
-
-function syncIndicatorDockVisibility() {
-  const dock = document.getElementById('indicatorDock');
-  const rsiCard = document.getElementById('rsiChartCard');
-  const macdCard = document.getElementById('macdChartCard');
-  if (!dock || !rsiCard || !macdCard) return;
-
-  const showDock = !rsiCard.classList.contains('hidden') || !macdCard.classList.contains('hidden');
-  dock.classList.toggle('hidden', !showDock);
+  syncFallbackPriceVisibility();
 }
 
 function buildPriceChart(data) {
@@ -165,14 +147,16 @@ function buildPriceChart(data) {
     return;
   }
 
-  try {
-    currentPriceChartMeta = {
-      labels: data.prices.map(item => item.date),
-      closes: data.prices.map(item => item.close),
-      currency: data.meta.currency,
-    };
+  currentPriceChartMeta = {
+    labels: data.prices.map(item => item.date),
+    closes: data.prices.map(item => item.close),
+    currency: data.meta.currency,
+  };
 
-    const chart = LightweightCharts.createChart(container, {
+  let chart;
+  let candleSeries;
+  try {
+    chart = LightweightCharts.createChart(container, {
       layout: {
         background: { color: '#0f172a' },
         textColor: '#9fb0cb',
@@ -216,40 +200,47 @@ function buildPriceChart(data) {
     lightweightState.currency = data.meta.currency;
     lightweightState.technicalData = data;
 
-    const candleSeries = chart.addCandlestickSeries({
-    upColor: '#3fb950',
-    downColor: '#f85149',
-    borderVisible: false,
-    wickUpColor: '#3fb950',
-    wickDownColor: '#f85149',
-    priceLineColor: '#58a6ff',
-  });
+    candleSeries = chart.addSeries(LightweightCharts.CandlestickSeries, {
+      upColor: '#3fb950',
+      downColor: '#f85149',
+      borderVisible: false,
+      wickUpColor: '#3fb950',
+      wickDownColor: '#f85149',
+      priceLineColor: '#58a6ff',
+    });
+  } catch (error) {
+    console.error('Lightweight chart failed, using fallback chart.', error);
+    destroyLightweightChart();
+    buildPriceChartFallback(data, container);
+    return;
+  }
 
-    const volumeSeries = chart.addHistogramSeries({
-    color: 'rgba(88, 166, 255, 0.35)',
-    priceFormat: { type: 'volume' },
-    priceScaleId: '',
-    scaleMargins: { top: 0.78, bottom: 0 },
-  });
+  try {
+    const volumeSeries = chart.addSeries(LightweightCharts.HistogramSeries, {
+      color: 'rgba(88, 166, 255, 0.35)',
+      priceFormat: { type: 'volume' },
+      priceScaleId: '',
+      scaleMargins: { top: 0.78, bottom: 0 },
+    });
 
     chart.priceScale('').applyOptions({
-    scaleMargins: { top: 0.78, bottom: 0 },
-    borderVisible: false,
-  });
+      scaleMargins: { top: 0.78, bottom: 0 },
+      borderVisible: false,
+    });
 
     const priceData = data.prices.map(item => ({
-    time: toBusinessDay(item.date),
-    open: item.open,
-    high: item.high,
-    low: item.low,
-    close: item.close,
-  }));
+      time: toBusinessDay(item.date),
+      open: item.open,
+      high: item.high,
+      low: item.low,
+      close: item.close,
+    }));
 
     const volumeData = data.prices.map(item => ({
-    time: toBusinessDay(item.date),
-    value: item.volume,
-    color: item.close >= item.open ? 'rgba(63, 185, 80, 0.45)' : 'rgba(248, 81, 73, 0.45)',
-  }));
+      time: toBusinessDay(item.date),
+      value: item.volume,
+      color: item.close >= item.open ? 'rgba(63, 185, 80, 0.45)' : 'rgba(248, 81, 73, 0.45)',
+    }));
 
     candleSeries.setData(priceData);
     volumeSeries.setData(volumeData);
@@ -259,32 +250,33 @@ function buildPriceChart(data) {
     lightweightState.priceData = priceData;
     lightweightState.volumeData = volumeData;
 
-    lightweightState.series.ema20 = createLineSeries(chart, '#f0883e', 2);
-  lightweightState.series.ema50 = createLineSeries(chart, '#bc8cff', 2);
-  lightweightState.series.sma200 = createLineSeries(chart, '#2ea043', 2, [6, 4]);
-  lightweightState.series.bbUpper = createLineSeries(chart, 'rgba(139, 148, 158, 0.45)', 1, [4, 4]);
-  lightweightState.series.bbMiddle = createLineSeries(chart, 'rgba(139, 148, 158, 0.8)', 1, [2, 2]);
-  lightweightState.series.bbLower = createLineSeries(chart, 'rgba(139, 148, 158, 0.45)', 1, [4, 4]);
-    lightweightState.series.volumeMA20 = chart.addLineSeries({
-    color: '#d29922',
-    lineWidth: 1,
-    priceScaleId: '',
-    lastValueVisible: false,
-    priceLineVisible: false,
-  });
+    lightweightState.series.ema20 = createLineSeries(chart, '#f0883e', 2, null, lightweightState.visible.movingAverages);
+    lightweightState.series.ema50 = createLineSeries(chart, '#bc8cff', 2, null, lightweightState.visible.movingAverages);
+    lightweightState.series.sma200 = createLineSeries(chart, '#2ea043', 2, [6, 4], lightweightState.visible.movingAverages);
+    lightweightState.series.bbUpper = createLineSeries(chart, 'rgba(139, 148, 158, 0.45)', 1, [4, 4], lightweightState.visible.bollinger);
+    lightweightState.series.bbMiddle = createLineSeries(chart, 'rgba(139, 148, 158, 0.8)', 1, [2, 2], lightweightState.visible.bollinger);
+    lightweightState.series.bbLower = createLineSeries(chart, 'rgba(139, 148, 158, 0.45)', 1, [4, 4], lightweightState.visible.bollinger);
+    lightweightState.series.volumeMA20 = chart.addSeries(LightweightCharts.LineSeries, {
+      color: '#d29922',
+      lineWidth: 1,
+      priceScaleId: '',
+      lastValueVisible: false,
+      priceLineVisible: false,
+      visible: lightweightState.visible.movingAverages,
+    });
 
     lightweightState.series.ema20.setData(buildLineData(data.prices, data.indicators.movingAverages.ema20));
-  lightweightState.series.ema50.setData(buildLineData(data.prices, data.indicators.movingAverages.ema50));
-  lightweightState.series.sma200.setData(buildLineData(data.prices, data.indicators.movingAverages.sma200));
-  lightweightState.series.bbUpper.setData(buildLineData(data.prices, data.indicators.bollingerBands.upper));
-  lightweightState.series.bbMiddle.setData(buildLineData(data.prices, data.indicators.bollingerBands.middle));
-  lightweightState.series.bbLower.setData(buildLineData(data.prices, data.indicators.bollingerBands.lower));
-  lightweightState.series.volumeMA20.setData(buildLineData(data.prices, data.indicators.volumeIndicators.volumeMA20));
+    lightweightState.series.ema50.setData(buildLineData(data.prices, data.indicators.movingAverages.ema50));
+    lightweightState.series.sma200.setData(buildLineData(data.prices, data.indicators.movingAverages.sma200));
+    lightweightState.series.bbUpper.setData(buildLineData(data.prices, data.indicators.bollingerBands.upper));
+    lightweightState.series.bbMiddle.setData(buildLineData(data.prices, data.indicators.bollingerBands.middle));
+    lightweightState.series.bbLower.setData(buildLineData(data.prices, data.indicators.bollingerBands.lower));
+    lightweightState.series.volumeMA20.setData(buildLineData(data.prices, data.indicators.volumeIndicators.volumeMA20));
 
     buildLevelSeries(chart, data.prices, data.indicators.levels || { supports: [], resistances: [] });
     updateLightweightVisibility();
     chart.timeScale().fitContent();
-    attachPriceTooltip(data.prices);
+    attachPriceTooltip(data.prices, data);
 
     lightweightState.resizeHandler = () => {
       if (!lightweightState.container || !lightweightState.chart) return;
@@ -296,12 +288,8 @@ function buildPriceChart(data) {
     window.addEventListener('resize', lightweightState.resizeHandler);
     lightweightState.resizeHandler();
     syncBacktestMarkers();
-    toggleRSI(Boolean(document.getElementById('toggleRSI')?.checked));
-    toggleMACD(Boolean(document.getElementById('toggleMACD')?.checked));
   } catch (error) {
-    console.error('Lightweight chart failed, using fallback chart.', error);
-    destroyLightweightChart();
-    buildPriceChartFallback(data, container);
+    console.error('Lightweight overlay setup failed after candlestick render.', error);
   }
 }
 
@@ -317,6 +305,7 @@ function buildPriceChartFallback(data, container) {
   const movingAverages = data.indicators.movingAverages || {};
   const bollinger = data.indicators.bollingerBands || {};
   const volumeMA20 = data.indicators.volumeIndicators?.volumeMA20 || [];
+  const levels = data.indicators.levels || { supports: [], resistances: [] };
 
   chartInstances.priceFallback = new Chart(canvas.getContext('2d'), {
     type: 'line',
@@ -340,6 +329,7 @@ function buildPriceChartFallback(data, container) {
           borderWidth: 1.5,
           pointRadius: 0,
           tension: 0.15,
+          hidden: !lightweightState.visible.movingAverages,
         },
         {
           label: 'EMA 50',
@@ -349,6 +339,7 @@ function buildPriceChartFallback(data, container) {
           borderWidth: 1.5,
           pointRadius: 0,
           tension: 0.15,
+          hidden: !lightweightState.visible.movingAverages,
         },
         {
           label: 'SMA 200',
@@ -359,6 +350,7 @@ function buildPriceChartFallback(data, container) {
           borderDash: [6, 4],
           pointRadius: 0,
           tension: 0.15,
+          hidden: !lightweightState.visible.movingAverages,
         },
         {
           label: '볼린저 상단',
@@ -369,6 +361,7 @@ function buildPriceChartFallback(data, container) {
           borderDash: [4, 4],
           pointRadius: 0,
           tension: 0.1,
+          hidden: !lightweightState.visible.bollinger,
         },
         {
           label: '볼린저 하단',
@@ -379,6 +372,7 @@ function buildPriceChartFallback(data, container) {
           borderDash: [4, 4],
           pointRadius: 0,
           tension: 0.1,
+          hidden: !lightweightState.visible.bollinger,
         },
         {
           label: '거래량 MA20',
@@ -390,6 +384,8 @@ function buildPriceChartFallback(data, container) {
           tension: 0.15,
           hidden: true,
         },
+        ...buildFallbackLevelDatasets(labels, levels.supports || [], 'support'),
+        ...buildFallbackLevelDatasets(labels, levels.resistances || [], 'resistance'),
       ],
     },
     options: {
@@ -420,15 +416,19 @@ function buildPriceChartFallback(data, container) {
       },
     },
   });
+
+  syncFallbackBacktestMarkers();
+  syncFallbackPriceVisibility();
 }
 
-function createLineSeries(chart, color, lineWidth, lineStyle) {
-  return chart.addLineSeries({
+function createLineSeries(chart, color, lineWidth, lineStyle, visible = true) {
+  return chart.addSeries(LightweightCharts.LineSeries, {
     color,
     lineWidth,
     lineStyle: lineStyle ? LightweightCharts.LineStyle.LargeDashed : LightweightCharts.LineStyle.Solid,
     lastValueVisible: false,
     priceLineVisible: false,
+    visible,
   });
 }
 
@@ -440,24 +440,26 @@ function buildLineData(prices, values) {
 
 function buildLevelSeries(chart, prices, levels) {
   lightweightState.levelSeries.supports = (levels.supports || []).map(level => {
-    const series = chart.addLineSeries({
-      color: 'rgba(63, 185, 80, 0.35)',
-      lineWidth: 1,
+    const series = chart.addSeries(LightweightCharts.LineSeries, {
+      color: 'rgba(63, 185, 80, 0.65)',
+      lineWidth: 2,
       lineStyle: LightweightCharts.LineStyle.Dashed,
       lastValueVisible: false,
       priceLineVisible: false,
+      visible: lightweightState.visible.supportResistance,
     });
     series.setData(prices.map(item => ({ time: toBusinessDay(item.date), value: level })));
     return series;
   });
 
   lightweightState.levelSeries.resistances = (levels.resistances || []).map(level => {
-    const series = chart.addLineSeries({
-      color: 'rgba(248, 81, 73, 0.35)',
-      lineWidth: 1,
+    const series = chart.addSeries(LightweightCharts.LineSeries, {
+      color: 'rgba(248, 81, 73, 0.65)',
+      lineWidth: 2,
       lineStyle: LightweightCharts.LineStyle.Dashed,
       lastValueVisible: false,
       priceLineVisible: false,
+      visible: lightweightState.visible.supportResistance,
     });
     series.setData(prices.map(item => ({ time: toBusinessDay(item.date), value: level })));
     return series;
@@ -470,13 +472,65 @@ function updateLightweightVisibility() {
   toggleSupportResistance(lightweightState.visible.supportResistance);
 }
 
+function syncFallbackPriceVisibility() {
+  const fallback = chartInstances.priceFallback;
+  if (!fallback?.data?.datasets) return;
+
+  const movingAverageVisibility = !lightweightState.visible.movingAverages;
+  const bollingerVisibility = !lightweightState.visible.bollinger;
+  const datasets = fallback.data.datasets;
+  const levelDatasetEndIndex = Math.max(7, datasets.length - 2);
+
+  if (datasets[1]) datasets[1].hidden = movingAverageVisibility;
+  if (datasets[2]) datasets[2].hidden = movingAverageVisibility;
+  if (datasets[3]) datasets[3].hidden = movingAverageVisibility;
+  if (datasets[4]) datasets[4].hidden = bollingerVisibility;
+  if (datasets[5]) datasets[5].hidden = bollingerVisibility;
+  if (datasets[6]) datasets[6].hidden = movingAverageVisibility;
+  for (let index = 7; index < levelDatasetEndIndex; index += 1) {
+    if (datasets[index]) datasets[index].hidden = !lightweightState.visible.supportResistance;
+  }
+  if (datasets[datasets.length - 2]) datasets[datasets.length - 2].hidden = !lightweightState.visible.backtestMarkers;
+  if (datasets[datasets.length - 1]) datasets[datasets.length - 1].hidden = !lightweightState.visible.backtestMarkers;
+
+  fallback.update('none');
+}
+
+function buildFallbackLevelDatasets(labels, levels, kind) {
+  const color = kind === 'support' ? 'rgba(63, 185, 80, 0.7)' : 'rgba(248, 81, 73, 0.7)';
+  const prefix = kind === 'support' ? '지지선' : '저항선';
+  return levels.map((level, index) => ({
+    label: `${prefix} ${index + 1}`,
+    data: labels.map(() => level),
+    borderColor: color,
+    backgroundColor: 'transparent',
+    borderWidth: 2,
+    borderDash: [6, 4],
+    pointRadius: 0,
+    tension: 0,
+    hidden: !lightweightState.visible.supportResistance,
+  }));
+}
+
 function syncBacktestMarkers() {
   if (!lightweightState.candleSeries) return;
-  if (!lightweightState.visible.backtestMarkers || !lightweightState.markerData.length) {
-    lightweightState.candleSeries.setMarkers([]);
+  if (
+    !lightweightState.markerPrimitive &&
+    typeof LightweightCharts?.createSeriesMarkers === 'function'
+  ) {
+    lightweightState.markerPrimitive = LightweightCharts.createSeriesMarkers(lightweightState.candleSeries, []);
+  }
+
+  const markers = lightweightState.visible.backtestMarkers ? lightweightState.markerData : [];
+
+  if (lightweightState.markerPrimitive?.setMarkers) {
+    lightweightState.markerPrimitive.setMarkers(markers);
     return;
   }
-  lightweightState.candleSeries.setMarkers(lightweightState.markerData);
+
+  if (typeof lightweightState.candleSeries.setMarkers === 'function') {
+    lightweightState.candleSeries.setMarkers(markers);
+  }
 }
 
 function setBacktestMarkers(backtest) {
@@ -492,12 +546,75 @@ function setBacktestMarkers(backtest) {
       text: item.action === 'ENTER_LONG' ? '진입' : '청산',
     }));
   syncBacktestMarkers();
+  syncFallbackBacktestMarkers();
 }
 
-function attachPriceTooltip(prices) {
+function syncFallbackBacktestMarkers() {
+  const fallback = chartInstances.priceFallback;
+  if (!fallback?.data?.labels || !fallback?.data?.datasets) return;
+
+  const labels = fallback.data.labels;
+  const results = currentBacktestMarkers?.results || [];
+  const enterByDate = new Map();
+  const exitByDate = new Map();
+
+  results.forEach(item => {
+    if (item.action === 'ENTER_LONG') enterByDate.set(item.date, item.close);
+    if (item.action === 'EXIT_LONG') exitByDate.set(item.date, item.close);
+  });
+
+  const markerDatasets = [
+    buildFallbackBacktestMarkerDataset(labels, enterByDate, '백테스트 진입', '#3fb950', 'triangle', 0),
+    buildFallbackBacktestMarkerDataset(labels, exitByDate, '백테스트 청산', '#f85149', 'triangle', 180),
+  ];
+
+  fallback.data.datasets = [
+    ...fallback.data.datasets.filter(dataset => dataset?.markerType !== 'backtest'),
+    ...markerDatasets,
+  ];
+
+  syncFallbackPriceVisibility();
+}
+
+function buildFallbackBacktestMarkerDataset(labels, valueMap, label, color, pointStyle, rotation) {
+  return {
+    type: 'line',
+    label,
+    data: labels.map(date => (valueMap.has(date) ? valueMap.get(date) : null)),
+    borderColor: 'transparent',
+    backgroundColor: color,
+    pointBackgroundColor: color,
+    pointBorderColor: '#0f172a',
+    pointBorderWidth: 1.2,
+    pointRadius: 6,
+    pointHoverRadius: 7,
+    pointStyle,
+    pointRotation: rotation,
+    showLine: false,
+    hidden: !lightweightState.visible.backtestMarkers,
+    markerType: 'backtest',
+  };
+}
+
+function attachPriceTooltip(prices, technicalData) {
   if (!lightweightState.chart || !lightweightState.tooltip || !lightweightState.container) return;
   const tooltip = lightweightState.tooltip;
   const closeByDate = new Map(prices.map(item => [item.date, item]));
+  const indicators = technicalData?.indicators || {};
+  const movingAverages = indicators.movingAverages || {};
+  const bollingerBands = indicators.bollingerBands || {};
+  const macd = indicators.macd || {};
+  const levels = indicators.levels || {};
+  const rsiByDate = buildIndicatorMap(prices, indicators.rsi || []);
+  const ema20ByDate = buildIndicatorMap(prices, movingAverages.ema20 || []);
+  const ema50ByDate = buildIndicatorMap(prices, movingAverages.ema50 || []);
+  const sma200ByDate = buildIndicatorMap(prices, movingAverages.sma200 || []);
+  const bbUpperByDate = buildIndicatorMap(prices, bollingerBands.upper || []);
+  const bbMiddleByDate = buildIndicatorMap(prices, bollingerBands.middle || []);
+  const bbLowerByDate = buildIndicatorMap(prices, bollingerBands.lower || []);
+  const macdLineByDate = buildIndicatorMap(prices, macd.macdLine || []);
+  const macdSignalByDate = buildIndicatorMap(prices, macd.signalLine || []);
+  const macdHistogramByDate = buildIndicatorMap(prices, macd.histogram || []);
 
   lightweightState.chart.subscribeCrosshairMove(param => {
     if (!param.point || !param.time || param.point.x < 0 || param.point.y < 0) {
@@ -512,13 +629,44 @@ function attachPriceTooltip(prices) {
       return;
     }
 
+    const lines = [
+      `<div class="lw-tooltip-date">${escapeHtml(date)}</div>`,
+      `<div>시가 <strong>${escapeHtml(formatPrice(candle.open, lightweightState.currency))}</strong></div>`,
+      `<div>고가 <strong>${escapeHtml(formatPrice(candle.high, lightweightState.currency))}</strong></div>`,
+      `<div>저가 <strong>${escapeHtml(formatPrice(candle.low, lightweightState.currency))}</strong></div>`,
+      `<div>종가 <strong>${escapeHtml(formatPrice(candle.close, lightweightState.currency))}</strong></div>`,
+      `<div>거래량 <strong>${escapeHtml(formatVolume(candle.volume))}</strong></div>`,
+    ];
+
+    if (document.getElementById('toggleMA')?.checked) {
+      lines.push(`<div>EMA 20 <strong>${escapeHtml(formatMaybeIndicatorPrice(ema20ByDate.get(date), lightweightState.currency))}</strong></div>`);
+      lines.push(`<div>EMA 50 <strong>${escapeHtml(formatMaybeIndicatorPrice(ema50ByDate.get(date), lightweightState.currency))}</strong></div>`);
+      lines.push(`<div>SMA 200 <strong>${escapeHtml(formatMaybeIndicatorPrice(sma200ByDate.get(date), lightweightState.currency))}</strong></div>`);
+    }
+
+    if (document.getElementById('toggleBB')?.checked) {
+      lines.push(`<div>BB 상단 <strong>${escapeHtml(formatMaybeIndicatorPrice(bbUpperByDate.get(date), lightweightState.currency))}</strong></div>`);
+      lines.push(`<div>BB 중심 <strong>${escapeHtml(formatMaybeIndicatorPrice(bbMiddleByDate.get(date), lightweightState.currency))}</strong></div>`);
+      lines.push(`<div>BB 하단 <strong>${escapeHtml(formatMaybeIndicatorPrice(bbLowerByDate.get(date), lightweightState.currency))}</strong></div>`);
+    }
+
+    if (document.getElementById('toggleLevels')?.checked) {
+      lines.push(`<div>지지선 <strong>${escapeHtml(formatMaybeIndicatorPrice((levels.supports || [])[0], lightweightState.currency))}</strong></div>`);
+      lines.push(`<div>저항선 <strong>${escapeHtml(formatMaybeIndicatorPrice((levels.resistances || [])[0], lightweightState.currency))}</strong></div>`);
+    }
+
+    if (document.getElementById('toggleRSI')?.checked) {
+      lines.push(`<div>RSI <strong>${escapeHtml(formatMaybeIndicatorNumber(rsiByDate.get(date), 2))}</strong></div>`);
+    }
+
+    if (document.getElementById('toggleMACD')?.checked) {
+      lines.push(`<div>MACD <strong>${escapeHtml(formatMaybeIndicatorNumber(macdLineByDate.get(date), 4))}</strong></div>`);
+      lines.push(`<div>MACD 시그널 <strong>${escapeHtml(formatMaybeIndicatorNumber(macdSignalByDate.get(date), 4))}</strong></div>`);
+      lines.push(`<div>히스토그램 <strong>${escapeHtml(formatMaybeIndicatorNumber(macdHistogramByDate.get(date), 4))}</strong></div>`);
+    }
+
     tooltip.innerHTML = `
-      <div class="lw-tooltip-date">${escapeHtml(date)}</div>
-      <div>시가 <strong>${escapeHtml(formatPrice(candle.open, lightweightState.currency))}</strong></div>
-      <div>고가 <strong>${escapeHtml(formatPrice(candle.high, lightweightState.currency))}</strong></div>
-      <div>저가 <strong>${escapeHtml(formatPrice(candle.low, lightweightState.currency))}</strong></div>
-      <div>종가 <strong>${escapeHtml(formatPrice(candle.close, lightweightState.currency))}</strong></div>
-      <div>거래량 <strong>${escapeHtml(formatVolume(candle.volume))}</strong></div>
+      ${lines.join('')}
     `;
 
     const width = tooltip.offsetWidth || 180;
@@ -530,6 +678,20 @@ function attachPriceTooltip(prices) {
     tooltip.style.top = `${top}px`;
     tooltip.classList.remove('hidden');
   });
+}
+
+function buildIndicatorMap(prices, values) {
+  return new Map(prices.map((item, index) => [item.date, values[index]]));
+}
+
+function formatMaybeIndicatorPrice(value, currency) {
+  if (value == null || Number.isNaN(Number(value))) return '-';
+  return formatPrice(Number(value), currency);
+}
+
+function formatMaybeIndicatorNumber(value, digits = 2) {
+  if (value == null || Number.isNaN(Number(value))) return '-';
+  return Number(value).toFixed(digits);
 }
 
 function buildBacktestChart(backtest) {

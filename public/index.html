@@ -16,10 +16,10 @@
         </svg>
         <span>Stock Analyzer</span>
       </div>
-      <nav class="header-links" aria-label="?ъ씠???뺣낫">
-        <a href="/about">?뚭컻</a>
-        <a href="/contact">臾몄쓽</a>
-        <a href="/privacy">媛쒖씤?뺣낫泥섎━諛⑹묠</a>
+      <nav class="header-links" aria-label="사이트 정보">
+        <a href="/about">소개</a>
+        <a href="/contact">문의</a>
+        <a href="/privacy">개인정보처리방침</a>
       </nav>
     </div>
   </header>
@@ -32,25 +32,25 @@
             type="text"
             id="tickerInput"
             class="search-input"
-            placeholder="?? ?쇱꽦?꾩옄, Apple, AAPL, 005930"
+            placeholder="예: 삼성전자, Apple, AAPL, 005930"
             autocomplete="off"
             spellcheck="false"
           />
           <select id="suffixSelect" class="suffix-select">
-            <option value="auto">?먮룞</option>
+            <option value="auto">자동</option>
             <option value=".KS">KOSPI (.KS)</option>
             <option value=".KQ">KOSDAQ (.KQ)</option>
-            <option value="none">?묐????놁쓬</option>
+            <option value="none">접미사 없음</option>
           </select>
           <button id="searchBtn" class="search-btn" type="button">조회</button>
         </div>
 
         <div class="strategy-row">
-          <label class="strategy-label" for="strategySelect">?꾨왂</label>
+          <label class="strategy-label" for="strategySelect">전략</label>
           <select id="strategySelect" class="strategy-select">
-            <option value="balanced">洹좏삎??/option>
-            <option value="trend_following">異붿꽭異붿쥌??/option>
-            <option value="mean_reversion">?됯퇏?뚭???/option>
+            <option value="balanced">균형형</option>
+            <option value="trend_following">추세추종형</option>
+            <option value="mean_reversion">평균회귀형</option>
           </select>
         </div>
 
@@ -111,7 +111,7 @@
 
     <div id="loadingSpinner" class="loading-spinner hidden">
       <div class="spinner"></div>
-      <p>?곗씠?곕? 遺덈윭?ㅻ뒗 以묒엯?덈떎.</p>
+      <p>데이터를 불러오는 중입니다.</p>
     </div>
 
     <section id="mainContent" class="main-content hidden">
@@ -120,7 +120,7 @@
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
           </svg>
-          湲곗닠??遺꾩꽍
+          기술적 분석
         </button>
         <button class="tab-btn" data-tab="financials">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -128,7 +128,7 @@
             <line x1="8" y1="21" x2="16" y2="21"></line>
             <line x1="12" y1="17" x2="12" y2="21"></line>
           </svg>
-          ?щТ?쒗몴
+          재무제표
         </button>
       </div>
 
@@ -136,7 +136,7 @@
         <section id="signalOverview" class="signal-overview hidden">
           <div class="signal-overview-top">
             <div class="signal-title-group">
-              <span class="eyebrow">?ㅼ떆媛??좏샇 ?붿쭊</span>
+              <span class="eyebrow">실시간 신호 엔진</span>
               <div class="signal-headline-row">
                 <h3 id="signalHeadline" class="signal-headline"></h3>
                 <span id="signalStrength" class="signal-strength"></span>
@@ -150,11 +150,11 @@
 
           <div id="signalSummaryBody" class="signal-summary-body">
             <div class="signal-panel">
-              <div class="signal-panel-title">???좏샇??洹쇨굅</div>
+              <div class="signal-panel-title">매수 신호 근거</div>
               <ul id="signalReasons" class="signal-list"></ul>
             </div>
             <div class="signal-panel">
-              <div class="signal-panel-title">由ъ뒪??泥댄겕</div>
+              <div class="signal-panel-title">리스크 체크</div>
               <ul id="signalRisks" class="signal-list"></ul>
             </div>
           </div>
@@ -164,7 +164,7 @@
           <label class="section-toggle-control">
             <input type="checkbox" id="toggleRulesSection" />
             <span class="section-toggle-box"></span>
-            <span class="section-toggle-text">?좏샇 怨꾩궛 ?ㅻ챸</span>
+            <span class="section-toggle-text">신호 계산 설명</span>
           </label>
         </div>
 
@@ -172,40 +172,40 @@
           <div class="historical-signal-header">
             <div>
               <div class="historical-signal-eyebrow">How It Works</div>
-              <h3 class="historical-signal-title">?꾩옱 ?먯닔瑜?怨꾩궛?섎뒗 ?듭떖 湲곗?</h3>
+              <h3 class="historical-signal-title">현재 점수를 계산하는 핵심 기준</h3>
             </div>
           </div>
 
           <div class="rules-grid">
             <div class="signal-panel">
-              <div class="signal-panel-title">留ㅼ닔 ?먯닔</div>
+              <div class="signal-panel-title">매수 점수</div>
               <ul class="signal-list">
-                <li>?대룞?됯퇏???뺣젹怨?媛寃??꾩튂瑜?癒쇱? 遊낅땲??</li>
-                <li>MACD, RSI, ?ㅽ넗罹먯뒪?깆쑝濡?紐⑤찘????뺤씤?⑸땲??</li>
-                <li>嫄곕옒??諛곗닔? OBV濡??좏샇???섏쓣 蹂닿컯?⑸땲??</li>
-                <li>吏吏??諛섎벑怨????꽑 ?뚰뙆瑜??꾩튂 ?먯닔濡?諛섏쁺?⑸땲??</li>
-                <li>ATR怨??먯씡鍮꾧? 遺덈━?섎㈃ 媛먯젏?⑸땲??</li>
+                <li>이동평균선 정렬과 가격 위치를 먼저 봅니다.</li>
+                <li>MACD, RSI, 스토캐스틱으로 모멘텀을 확인합니다.</li>
+                <li>거래량 배수와 OBV로 신호의 힘을 보강합니다.</li>
+                <li>지지선 반등과 저항선 돌파를 위치 점수로 반영합니다.</li>
+                <li>ATR과 괴리율이 불리하면 감점합니다.</li>
               </ul>
             </div>
 
             <div class="signal-panel">
-              <div class="signal-panel-title">留ㅻ룄 ?먯닔</div>
+              <div class="signal-panel-title">매도 점수</div>
               <ul class="signal-list">
-                <li>?대룞?됯퇏????같?닿낵 吏吏???댄깉??以묒슂?섍쾶 遊낅땲??</li>
-                <li>MACD ?곕뱶?щ줈?ㅼ? ?쏀빐吏?RSI瑜??④퍡 諛섏쁺?⑸땲??</li>
-                <li>?섎씫 援ш컙 嫄곕옒??利앷?? OBV ?쎌꽭瑜??뺤씤?⑸땲??</li>
-                <li>怨쇰ℓ???댄썑??湲곗닠??諛섎벑 媛?μ꽦? 媛먯젏?⑸땲??</li>
-                <li>異붿꽭 媛뺣룄媛 ?쏀븯硫?蹂댁닔?곸쑝濡??댁꽍?⑸땲??</li>
+                <li>이동평균선 역배열과 지지선 이탈을 중요하게 봅니다.</li>
+                <li>MACD 데드크로스와 약해진 RSI를 크게 반영합니다.</li>
+                <li>하락 구간 거래량 증가와 OBV 약세를 확인합니다.</li>
+                <li>과매도 이후의 기술적 반등 가능성은 감점합니다.</li>
+                <li>추세 강도가 약하면 보수적으로 해석합니다.</li>
               </ul>
             </div>
 
             <div class="signal-panel">
-              <div class="signal-panel-title">?꾨왂 紐⑤뱶 李⑥씠</div>
+              <div class="signal-panel-title">전략 모드 차이</div>
               <ul class="signal-list">
-                <li>洹좏삎?뺤? 異붿꽭, 紐⑤찘?, ?꾩튂瑜?怨좊Ⅴ寃?諛섏쁺?⑸땲??</li>
-                <li>異붿꽭異붿쥌?뺤? ?뺣같?? ADX, 嫄곕옒???뚰뙆瑜???媛뺥븯寃?遊낅땲??</li>
-                <li>?됯퇏?뚭??뺤? 怨쇰ℓ??諛섎벑, 吏吏?? ?뚮┝紐?援ш컙????以묒떆?⑸땲??</li>
-                <li>怨쇨굅 ?쒖젏怨?諛깊뀒?ㅽ듃??媛숈? 洹쒖튃?쇰줈 怨꾩궛?⑸땲??</li>
+                <li>균형형은 추세, 모멘텀, 위치를 고르게 반영합니다.</li>
+                <li>추세추종형은 정배열, ADX, 거래량과 돌파를 더 강하게 봅니다.</li>
+                <li>평균회귀형은 과매도 반등, 지지선, 되돌림 구간을 더 중시합니다.</li>
+                <li>과거 시점과 백테스트도 같은 규칙으로 계산합니다.</li>
               </ul>
             </div>
           </div>
@@ -215,62 +215,62 @@
           <label class="section-toggle-control">
             <input type="checkbox" id="togglePointInTimeSection" checked />
             <span class="section-toggle-box"></span>
-            <span class="section-toggle-text">Point-in-Time</span>
+            <span class="section-toggle-text">과거 시점 점검</span>
           </label>
         </div>
 
         <section id="historicalSignalSection" class="historical-signal-card">
           <div class="historical-signal-header">
             <div>
-              <div class="historical-signal-eyebrow">Point-in-Time</div>
-              <h3 class="historical-signal-title">怨쇨굅 ?뱀젙 ?좎쭨 ?좏샇 議고쉶</h3>
-              <p class="historical-signal-note">?좏깮???좎쭨源뚯???怨쇨굅 ?곗씠?곕쭔 ?ъ슜?댁꽌 洹??쒖젏???먯닔? ?좏샇瑜?怨꾩궛?⑸땲??</p>
+              <div class="historical-signal-eyebrow">과거 시점 점검</div>
+              <h3 class="historical-signal-title">과거 특정 날짜 신호 조회</h3>
+              <p class="historical-signal-note">선택한 날짜까지의 과거 데이터만 사용해서 그 시점의 점수와 신호를 계산합니다.</p>
             </div>
             <div class="historical-signal-controls">
               <input type="date" id="historicalDateInput" class="historical-date-input" />
-              <button id="historicalSignalBtn" class="search-btn historical-btn">怨꾩궛</button>
+              <button id="historicalSignalBtn" class="search-btn historical-btn">계산</button>
             </div>
           </div>
 
           <div id="historicalSignalResult" class="historical-signal-result hidden">
             <div class="historical-signal-summary">
               <div class="historical-signal-summary-item">
-                <span class="historical-label">?좏깮???좎쭨</span>
+                <span class="historical-label">선택한 날짜</span>
                 <strong id="historicalRequestedDate"></strong>
               </div>
               <div class="historical-signal-summary-item">
-                <span class="historical-label">?ㅼ젣 怨꾩궛 湲곗???/span>
+                <span class="historical-label">실제 계산 기준일</span>
                 <strong id="historicalActualDate"></strong>
               </div>
               <div class="historical-signal-summary-item">
-                <span class="historical-label">理쒖쥌 ?좏샇</span>
+                <span class="historical-label">최종 신호</span>
                 <strong id="historicalSignalLabel"></strong>
               </div>
               <div class="historical-signal-summary-item">
-                <span class="historical-label">留ㅼ닔 / 留ㅻ룄 ?먯닔</span>
+                <span class="historical-label">매수 / 매도 점수</span>
                 <strong id="historicalScorePair"></strong>
               </div>
             </div>
 
             <div class="historical-indicator-grid">
-              <div class="historical-indicator-item"><span>醫낃?</span><strong id="historicalClose"></strong></div>
+              <div class="historical-indicator-item"><span>종가</span><strong id="historicalClose"></strong></div>
               <div class="historical-indicator-item"><span>RSI</span><strong id="historicalRsi"></strong></div>
               <div class="historical-indicator-item"><span>MACD</span><strong id="historicalMacd"></strong></div>
-              <div class="historical-indicator-item"><span>MACD ?쒓렇??/span><strong id="historicalMacdSignal"></strong></div>
-              <div class="historical-indicator-item"><span>蹂쇰┛? 諛대뱶</span><strong id="historicalBbBands"></strong></div>
+              <div class="historical-indicator-item"><span>MACD 시그널</span><strong id="historicalMacdSignal"></strong></div>
+              <div class="historical-indicator-item"><span>볼린저 밴드</span><strong id="historicalBbBands"></strong></div>
               <div class="historical-indicator-item"><span>EMA20 / EMA50</span><strong id="historicalEmaPair"></strong></div>
               <div class="historical-indicator-item"><span>ATR14 / ADX14</span><strong id="historicalAtrAdx"></strong></div>
-              <div class="historical-indicator-item"><span>嫄곕옒??鍮꾩쑉</span><strong id="historicalVolumeRatio"></strong></div>
-              <div class="historical-indicator-item"><span>吏吏??/ ???꽑</span><strong id="historicalLevels"></strong></div>
+              <div class="historical-indicator-item"><span>거래량 비율</span><strong id="historicalVolumeRatio"></strong></div>
+              <div class="historical-indicator-item"><span>지지선 / 저항선</span><strong id="historicalLevels"></strong></div>
             </div>
 
             <div class="breakdown-grid">
               <div class="signal-panel">
-                <div class="signal-panel-title">留ㅼ닔 ?먯닔 援ъ꽦</div>
+                <div class="signal-panel-title">매수 점수 구성</div>
                 <div id="historicalBuyBreakdown" class="breakdown-list"></div>
               </div>
               <div class="signal-panel">
-                <div class="signal-panel-title">留ㅻ룄 ?먯닔 援ъ꽦</div>
+                <div class="signal-panel-title">매도 점수 구성</div>
                 <div id="historicalSellBreakdown" class="breakdown-list"></div>
               </div>
             </div>
@@ -281,46 +281,46 @@
           <label class="section-toggle-control">
             <input type="checkbox" id="toggleBacktestSection" checked />
             <span class="section-toggle-box"></span>
-            <span class="section-toggle-text">Backtest</span>
+            <span class="section-toggle-text">백테스트</span>
           </label>
         </div>
 
         <section id="backtestSection" class="backtest-card">
           <div class="historical-signal-header">
             <div>
-              <div class="historical-signal-eyebrow">Backtest</div>
-              <h3 class="historical-signal-title">?좎쭨 援ш컙 諛깊뀒?ㅽ듃</h3>
-              <p class="historical-signal-note">?좏깮???꾨왂 湲곗??쇰줈 援ш컙蹂??좏샇瑜?怨꾩궛?섍퀬 ?ㅼ젣 吏꾩엯쨌泥?궛 湲곕줉???붿빟?⑸땲??</p>
+              <div class="historical-signal-eyebrow">백테스트</div>
+              <h3 class="historical-signal-title">날짜 구간 백테스트</h3>
+              <p class="historical-signal-note">선택한 전략 기준으로 구간별 신호를 계산하고 실제 진입·청산 기록을 요약합니다.</p>
             </div>
             <div class="historical-signal-controls">
               <input type="date" id="backtestStartDate" class="historical-date-input" />
               <input type="date" id="backtestEndDate" class="historical-date-input" />
-              <button id="backtestBtn" class="search-btn historical-btn">?ㅽ뻾</button>
+              <button id="backtestBtn" class="search-btn historical-btn">실행</button>
             </div>
           </div>
 
           <div id="backtestResult" class="historical-signal-result hidden">
             <div class="backtest-summary">
-              <div class="historical-signal-summary-item"><span class="historical-label">?꾩쟻 ?섏씡瑜?/span><strong id="backtestCumulativeReturn"></strong></div>
-              <div class="historical-signal-summary-item"><span class="historical-label">留ㅻℓ ?잛닔</span><strong id="backtestTradeCount"></strong></div>
-              <div class="historical-signal-summary-item"><span class="historical-label">?밸쪧</span><strong id="backtestWinRate"></strong></div>
+              <div class="historical-signal-summary-item"><span class="historical-label">누적 수익률</span><strong id="backtestCumulativeReturn"></strong></div>
+              <div class="historical-signal-summary-item"><span class="historical-label">매매 횟수</span><strong id="backtestTradeCount"></strong></div>
+              <div class="historical-signal-summary-item"><span class="historical-label">승률</span><strong id="backtestWinRate"></strong></div>
               <div class="historical-signal-summary-item"><span class="historical-label">MDD</span><strong id="backtestMdd"></strong></div>
               <div class="historical-signal-summary-item"><span class="historical-label">Buy & Hold</span><strong id="backtestBuyHold"></strong></div>
-              <div class="historical-signal-summary-item"><span class="historical-label">?ㅼ젣 湲곌컙</span><strong id="backtestActualRange"></strong></div>
+              <div class="historical-signal-summary-item"><span class="historical-label">실제 기간</span><strong id="backtestActualRange"></strong></div>
             </div>
 
             <div class="backtest-stat-grid">
-              <div class="historical-indicator-item"><span>?됯퇏 嫄곕옒 ?섏씡瑜?/span><strong id="backtestAvgTradeReturn"></strong></div>
-              <div class="historical-indicator-item"><span>?됯퇏 蹂댁쑀 ?쇱닔</span><strong id="backtestAvgHoldingDays"></strong></div>
-              <div class="historical-indicator-item"><span>?됯퇏 ?밸━ ?섏씡瑜?/span><strong id="backtestAvgWinReturn"></strong></div>
-              <div class="historical-indicator-item"><span>?됯퇏 ?먯떎 ?섏씡瑜?/span><strong id="backtestAvgLossReturn"></strong></div>
+              <div class="historical-indicator-item"><span>평균 거래 수익률</span><strong id="backtestAvgTradeReturn"></strong></div>
+              <div class="historical-indicator-item"><span>평균 보유 일수</span><strong id="backtestAvgHoldingDays"></strong></div>
+              <div class="historical-indicator-item"><span>평균 승리 수익률</span><strong id="backtestAvgWinReturn"></strong></div>
+              <div class="historical-indicator-item"><span>평균 손실 수익률</span><strong id="backtestAvgLossReturn"></strong></div>
             </div>
 
             <div id="backtestStrategyCompare" class="strategy-compare-wrap"></div>
 
             <div class="chart-card strategy-compare-chart-card">
               <div class="chart-header">
-                <span class="chart-title">?꾨왂蹂??꾩쟻 ?섏씡瑜?鍮꾧탳</span>
+                <span class="chart-title">전략별 누적 수익률 비교</span>
               </div>
               <div class="chart-wrap strategy-compare-chart-wrap">
                 <canvas id="strategyCompareChart"></canvas>
@@ -329,23 +329,23 @@
 
             <div class="breakdown-grid">
               <div class="signal-panel">
-                <div class="signal-panel-title">?좏샇 諛쒖깮 ?잛닔</div>
+                <div class="signal-panel-title">신호 발생 횟수</div>
                 <div id="backtestSignalCounts" class="breakdown-list"></div>
               </div>
               <div class="signal-panel">
-                <div class="signal-panel-title">?ㅼ젣 ?됰룞 ?잛닔</div>
+                <div class="signal-panel-title">실제 행동 횟수</div>
                 <div id="backtestActionCounts" class="breakdown-list"></div>
               </div>
             </div>
 
             <div class="signal-panel backtest-setup-panel">
-              <div class="signal-panel-title">?좏샇 ?댄썑 ?됯퇏 ?깃낵</div>
+              <div class="signal-panel-title">신호 이후 평균 성과</div>
               <div id="backtestSetupStats" class="setup-stats-grid"></div>
             </div>
 
             <div class="chart-card chart-card--tall backtest-chart-card">
               <div class="chart-header">
-                <span class="chart-title">?꾩쟻 ?섏씡瑜?怨≪꽑</span>
+                <span class="chart-title">누적 수익률 곡선</span>
               </div>
               <div class="chart-wrap">
                 <canvas id="backtestChart"></canvas>
@@ -356,14 +356,14 @@
               <table class="fin-table backtest-table">
                 <thead>
                   <tr>
-                    <th>?좎쭨</th>
-                    <th>醫낃?</th>
-                    <th>留ㅼ닔 ?먯닔</th>
-                    <th>留ㅻ룄 ?먯닔</th>
-                    <th>?좏샇</th>
-                    <th>?ъ???/th>
-                    <th>?됰룞</th>
-                    <th>?꾩쟻 ?섏씡瑜?/th>
+                    <th>날짜</th>
+                    <th>종가</th>
+                    <th>매수 점수</th>
+                    <th>매도 점수</th>
+                    <th>신호</th>
+                    <th>사유</th>
+                    <th>행동</th>
+                    <th>누적 수익률</th>
                   </tr>
                 </thead>
                 <tbody id="backtestTableBody"></tbody>
@@ -376,13 +376,13 @@
           <label class="section-toggle-control">
             <input type="checkbox" id="toggleChartSection" checked />
             <span class="section-toggle-box"></span>
-            <span class="section-toggle-text">李⑦듃? 吏??/span>
+            <span class="section-toggle-text">차트와 지표</span>
           </label>
         </div>
 
         <div id="chartSection">
           <div class="range-selector">
-            <span class="range-label">李⑦듃 湲곌컙:</span>
+            <span class="range-label">차트 기간:</span>
             <button class="range-btn" data-range="1mo">1M</button>
             <button class="range-btn" data-range="3mo">3M</button>
             <button class="range-btn active" data-range="6mo">6M</button>
@@ -394,12 +394,12 @@
           <div class="charts-container">
             <div class="chart-card chart-card--tall">
               <div class="chart-header">
-                <span class="chart-title">二쇨? ?먮쫫</span>
+                <span class="chart-title">주가 흐름</span>
                 <div class="chart-legend">
-                  <span class="legend-item"><span class="legend-dot" style="background:#58a6ff"></span> 醫낃?</span>
-                  <span class="legend-item"><span class="legend-dot" style="background:#f0883e"></span> ?대룞?됯퇏??/span>
-                  <span class="legend-item"><span class="legend-dot" style="background:#8b949e"></span> 蹂쇰┛? 諛대뱶</span>
-                  <span class="legend-item"><span class="legend-dot" style="background:#d29922"></span> 嫄곕옒??MA20</span>
+                  <span class="legend-item"><span class="legend-dot" style="background:#58a6ff"></span> 종가</span>
+                  <span class="legend-item"><span class="legend-dot" style="background:#f0883e"></span> 이동평균선</span>
+                  <span class="legend-item"><span class="legend-dot" style="background:#8b949e"></span> 볼린저 밴드</span>
+                  <span class="legend-item"><span class="legend-dot" style="background:#d29922"></span> 거래량 MA20</span>
                 </div>
               </div>
                 <div class="chart-wrap">
@@ -407,21 +407,11 @@
                     <div id="priceChart" class="price-chart-surface"></div>
                     <div id="priceChartTooltip" class="lw-tooltip hidden"></div>
                   </div>
-                  <div id="indicatorDock" class="chart-overlay-dock hidden">
-                    <div id="rsiChartCard" class="overlay-indicator-panel hidden">
-                      <div class="overlay-indicator-header">RSI</div>
-                      <canvas id="rsiChart" class="overlay-indicator-canvas"></canvas>
-                    </div>
-                    <div id="macdChartCard" class="overlay-indicator-panel hidden">
-                      <div class="overlay-indicator-header">MACD</div>
-                      <canvas id="macdChart" class="overlay-indicator-canvas"></canvas>
-                    </div>
-                  </div>
                 </div>
             </div>
 
             <div class="indicator-toggles">
-              <span class="indicator-toggles-label">吏???좉?</span>
+              <span class="indicator-toggles-label">지표 토글</span>
               <label class="indicator-toggle">
                 <input type="checkbox" id="toggleMA" />
                 <span class="toggle-dot" style="background:#f0883e"></span>
@@ -430,12 +420,12 @@
               <label class="indicator-toggle">
                 <input type="checkbox" id="toggleBB" />
                 <span class="toggle-dot" style="background:#8b949e"></span>
-                蹂쇰┛? 諛대뱶
+                볼린저 밴드
               </label>
               <label class="indicator-toggle">
                 <input type="checkbox" id="toggleLevels" checked />
                 <span class="toggle-dot" style="background:#3fb950"></span>
-                吏吏??/ ???꽑
+                지지선 / 저항선
               </label>
               <label class="indicator-toggle">
                 <input type="checkbox" id="toggleRSI" />
@@ -450,7 +440,7 @@
               <label class="indicator-toggle">
                 <input type="checkbox" id="toggleBacktestMarkers" />
                 <span class="toggle-dot" style="background:linear-gradient(180deg, #3fb950 0%, #f85149 100%)"></span>
-                諛깊뀒?ㅽ듃 吏꾩엯/泥?궛
+                백테스트 진입/청산
               </label>
             </div>
           </div>
@@ -460,7 +450,7 @@
           <label class="section-toggle-control">
             <input type="checkbox" id="toggleSecondaryInfoSection" />
             <span class="section-toggle-box"></span>
-            <span class="section-toggle-text">蹂댁“ ?뺣낫</span>
+            <span class="section-toggle-text">보조 정보</span>
           </label>
         </div>
 
@@ -468,8 +458,8 @@
           <section id="fearGreedSection" class="fear-greed-card hidden">
             <div class="fear-greed-header">
               <div>
-                <div class="fear-greed-eyebrow">?쒖옣 ?щ━</div>
-                <h3 class="fear-greed-title">怨듯룷?먯슃吏??/h3>
+                <div class="fear-greed-eyebrow">시장 심리</div>
+                <h3 class="fear-greed-title">공포·탐욕 지수</h3>
               </div>
               <span id="fearGreedLabel" class="fear-greed-label"></span>
             </div>
@@ -483,9 +473,9 @@
                   <div id="fearGreedFill" class="fear-greed-scale-fill"></div>
                 </div>
                 <div class="fear-greed-scale-labels">
-                  <span>洹밸룄??怨듯룷</span>
-                  <span>以묐┰</span>
-                  <span>洹밸룄???먯슃</span>
+                  <span>극도의 공포</span>
+                  <span>중립</span>
+                  <span>극도의 탐욕</span>
                 </div>
               </div>
             </div>
@@ -493,7 +483,7 @@
 
           <section id="newsSection" class="news-section hidden">
             <div class="news-header">
-              <h3 class="news-title">愿???댁뒪</h3>
+              <h3 class="news-title">관련 뉴스</h3>
               <span id="newsLoading" class="news-spinner hidden">
                 <span class="spinner-sm"></span>
               </span>
@@ -506,13 +496,13 @@
       <div id="tab-financials" class="tab-content hidden">
         <div class="fin-controls">
           <div class="fin-subtabs">
-            <button class="fin-tab-btn active" data-fintab="income">?먯씡怨꾩궛??/button>
-            <button class="fin-tab-btn" data-fintab="balance">?щТ?곹깭??/button>
-            <button class="fin-tab-btn" data-fintab="cashflow">?꾧툑?먮쫫??/button>
+            <button class="fin-tab-btn active" data-fintab="income">손익계산서</button>
+            <button class="fin-tab-btn" data-fintab="balance">재무상태표</button>
+            <button class="fin-tab-btn" data-fintab="cashflow">현금흐름표</button>
           </div>
           <div class="period-toggle">
-            <button class="period-btn active" data-period="annual">?곌컙</button>
-            <button class="period-btn" data-period="quarterly">遺꾧린</button>
+            <button class="period-btn active" data-period="annual">연간</button>
+            <button class="period-btn" data-period="quarterly">분기</button>
           </div>
         </div>
 
@@ -533,20 +523,20 @@
     <div class="site-footer-inner">
       <div>
         <strong>Stock Analyzer</strong>
-        <p class="site-footer-copy">?쒓뎅/誘멸뎅 二쇱떇??湲곗닠???좏샇, Point-in-Time, 諛깊뀒?ㅽ듃瑜??ㅻ챸 媛?ν븳 湲곗??쇰줈 蹂댁뿬二쇰뒗 遺꾩꽍 ?꾧뎄?낅땲??</p>
+        <p class="site-footer-copy">한국/미국 주식의 기술적 신호, Point-in-Time, 백테스트를 설명 가능한 기준으로 보여주는 분석 도구입니다.</p>
       </div>
-      <nav class="site-footer-links" aria-label="?명꽣 留곹겕">
-        <a href="/about">?뚭컻</a>
-        <a href="/contact">臾몄쓽</a>
-        <a href="/privacy">媛쒖씤?뺣낫泥섎━諛⑹묠</a>
+      <nav class="site-footer-links" aria-label="푸터 링크">
+        <a href="/about">소개</a>
+        <a href="/contact">문의</a>
+        <a href="/privacy">개인정보처리방침</a>
       </nav>
     </div>
   </footer>
 
   <script src="https://unpkg.com/lightweight-charts@5.1.0/dist/lightweight-charts.standalone.production.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-  <script src="/js/charts.js?v=20260403b"></script>
+  <script src="/js/charts.js?v=20260406e"></script>
   <script src="/js/financials.js?v=20260403a"></script>
-  <script src="/js/app.js?v=20260403b"></script>
+  <script src="/js/app.js?v=20260406e"></script>
 </body>
 </html>

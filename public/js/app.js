@@ -1033,15 +1033,39 @@ function applyStaticLocalization() {
   setOptionText(suffixSelect, ['\uc790\ub3d9', 'KOSPI (.KS)', 'KOSDAQ (.KQ)', '\uc811\ubbf8\uc0ac \uc5c6\uc74c']);
   if (searchBtn) setButtonText(searchBtn, '\uc870\ud68c');
   setText('#loadingSpinner p', '\ub370\uc774\ud130\ub97c \ubd88\ub7ec\uc624\ub294 \uc911\uc785\ub2c8\ub2e4.');
-  setText('.tab-btn[data-tab="technical"]', '\uae30\uc220\uc801 \ubd84\uc11d');
-  setText('.tab-btn[data-tab="financials"]', '\uc7ac\ubb34\uc81c\ud45c');
   setText('.eyebrow', '\uc2e4\uc2dc\uac04 \uc2e0\ud638 \uc5d4\uc9c4');
+  const headerLinks = document.querySelectorAll('.header-links a');
+  ['\uc18c\uac1c', '\ubb38\uc758', '\uac1c\uc778\uc815\ubcf4\ucc98\ub9ac\ubc29\uce68'].forEach((text, index) => {
+    if (headerLinks[index]) headerLinks[index].textContent = text;
+  });
+  const footerLinks = document.querySelectorAll('.site-footer-links a');
+  ['\uc18c\uac1c', '\ubb38\uc758', '\uac1c\uc778\uc815\ubcf4\ucc98\ub9ac\ubc29\uce68'].forEach((text, index) => {
+    if (footerLinks[index]) footerLinks[index].textContent = text;
+  });
+  setText('.site-footer-copy', '\ud55c\uad6d/\ubbf8\uad6d \uc8fc\uc2dd\uc758 \uae30\uc220\uc801 \uc2e0\ud638, Point-in-Time, \ubc31\ud14c\uc2a4\ud2b8\ub97c \uc124\uba85 \uac00\ub2a5\ud55c \uae30\uc900\uc73c\ub85c \ubcf4\uc5ec\uc8fc\ub294 \ubd84\uc11d \ub3c4\uad6c\uc785\ub2c8\ub2e4.');
+  const focusTitles = document.querySelectorAll('.focus-step strong');
+  ['\uc885\ubaa9 \uac80\uc0c9', '\ud604\uc7ac \uc2e0\ud638 \ud655\uc778', '\uacfc\uac70 \uc2dc\uc810 \uc810\uac80', '\ubc31\ud14c\uc2a4\ud2b8 \uc2e4\ud589'].forEach((text, index) => {
+    if (focusTitles[index]) focusTitles[index].textContent = text;
+  });
+  const focusDescriptions = document.querySelectorAll('.focus-step p');
+  [
+    '\uad00\uc2ec \uc885\ubaa9\uc774\ub098 \ud2f0\ucee4\ub97c \uc785\ub825\ud569\ub2c8\ub2e4.',
+    '\ud604\uc7ac \uc2dc\uc810\uc758 \ub9e4\uc218\u00b7\ub9e4\ub3c4 \uc810\uc218\uc640 \uc774\uc720\ub97c \uba3c\uc800 \ubd05\ub2c8\ub2e4.',
+    '\ud2b9\uc815 \ub0a0\uc9dc \uae30\uc900\uc73c\ub85c \uac19\uc740 \uc5d4\uc9c4\uc744 \ub2e4\uc2dc \ub3cc\ub824\ubd05\ub2c8\ub2e4.',
+    '\uae30\uac04 \ub2e8\uc704 \uc131\uacfc\uc640 \uc2e4\uc81c \uc9c4\uc785\u00b7\uccad\uc0b0 \uae30\ub85d\uc744 \ud655\uc778\ud569\ub2c8\ub2e4.',
+  ].forEach((text, index) => {
+    if (focusDescriptions[index]) focusDescriptions[index].textContent = text;
+  });
   setPanelTitles();
 }
 
 function setPanelTitles() {
-  const toggleTexts = ['\uc2e0\ud638 \uacc4\uc0b0 \uc124\uba85', 'Point-in-Time', 'Backtest', '\ucc28\ud2b8\uc640 \uc9c0\ud45c', '\ubcf4\uc870 \uc815\ubcf4'];
+  const toggleTexts = ['\uacfc\uac70 \uc2dc\uc810 \uc810\uac80', '\ubc31\ud14c\uc2a4\ud2b8', '\ucc28\ud2b8\uc640 \uc9c0\ud45c', '\ubcf4\uc870 \uc815\ubcf4'];
   document.querySelectorAll('.section-toggle-text').forEach((node, index) => { if (toggleTexts[index]) node.textContent = toggleTexts[index]; });
+  const eyebrows = document.querySelectorAll('.historical-signal-eyebrow');
+  if (eyebrows[0]) eyebrows[0].textContent = 'How It Works';
+  if (eyebrows[1]) eyebrows[1].textContent = 'Point-in-Time';
+  if (eyebrows[2]) eyebrows[2].textContent = '\ubc31\ud14c\uc2a4\ud2b8';
   const titles = document.querySelectorAll('.historical-signal-title');
   if (titles[0]) titles[0].textContent = '\ud604\uc7ac \uc810\uc218\ub97c \uacc4\uc0b0\ud558\ub294 \ud575\uc2ec \uae30\uc900';
   if (titles[1]) titles[1].textContent = '\uacfc\uac70 \ud2b9\uc815 \ub0a0\uc9dc \uc2e0\ud638 \uc870\ud68c';
@@ -1073,7 +1097,10 @@ function setPanelTitles() {
   });
   setText('.news-title', '\uad00\ub828 \ub274\uc2a4');
   setText('.range-label', '\ucc28\ud2b8 \uae30\uac04:');
-  setText('.chart-title', '\uc8fc\uac00 \ud750\ub984');
+  const chartTitles = document.querySelectorAll('.chart-title');
+  if (chartTitles[0]) chartTitles[0].textContent = '\uc8fc\uac00 \ud750\ub984';
+  if (chartTitles[1]) chartTitles[1].textContent = '\uc804\ub7b5\ubcc4 \ub204\uc801 \uc218\uc775\ub960 \ube44\uad50';
+  if (chartTitles[2]) chartTitles[2].textContent = '\ub204\uc801 \uc218\uc775\ub960 \uace1\uc120';
   document.querySelectorAll('.legend-item').forEach((node, index) => {
     node.lastChild.nodeValue = ['\uc885\uac00', '\uc774\ub3d9\ud3c9\uade0\uc120', '\ubcfc\ub9b0\uc800 \ubc34\ub4dc', '\uac70\ub798\ub7c9 MA20'][index] ? ` ${['\uc885\uac00', '\uc774\ub3d9\ud3c9\uade0\uc120', '\ubcfc\ub9b0\uc800 \ubc34\ub4dc', '\uac70\ub798\ub7c9 MA20'][index]}` : node.lastChild.nodeValue;
   });
