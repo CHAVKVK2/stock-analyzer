@@ -6,6 +6,12 @@ const STRATEGY_LABELS = {
   mean_reversion: '\ud3c9\uade0\ud68c\uadc0\ud615',
 };
 
+const PROFILE_LABELS = {
+  kr_standard: 'KR \ud45c\uc900',
+  us_megacap_growth: 'US \uba54\uac00\ucea1 \uc131\uc7a5',
+  us_broad_large_cap: 'US \ub300\ud615\uc8fc \ud45c\uc900',
+};
+
 const state = {
   currentTicker: null,
   currentRange: '6mo',
@@ -20,7 +26,6 @@ const state = {
 
 const tickerInput = document.getElementById('tickerInput');
 const suffixSelect = document.getElementById('suffixSelect');
-const strategySelect = document.getElementById('strategySelect');
 const searchBtn = document.getElementById('searchBtn');
 const autocomplete = document.getElementById('autocomplete');
 const errorBanner = document.getElementById('errorBanner');
@@ -31,6 +36,7 @@ const mainContent = document.getElementById('mainContent');
 const signalOverview = document.getElementById('signalOverview');
 const signalHeadline = document.getElementById('signalHeadline');
 const signalStrength = document.getElementById('signalStrength');
+const profileBanner = document.getElementById('profileBanner');
 const signalReasons = document.getElementById('signalReasons');
 const signalRisks = document.getElementById('signalRisks');
 const signalSummaryBody = document.getElementById('signalSummaryBody');
@@ -91,6 +97,9 @@ const chartSection = document.getElementById('chartSection');
 const secondaryInfoSection = document.getElementById('secondaryInfoSection');
 
 document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('strategySelect')?.closest('.strategy-row')?.remove();
+  document.getElementById('toggleRulesSection')?.closest('.section-toggle-row')?.remove();
+  document.getElementById('rulesSection')?.remove();
   applyStaticLocalization();
   setupSearch();
   setupTabs();
@@ -100,7 +109,6 @@ document.addEventListener('DOMContentLoaded', () => {
   setupHistoricalSignal();
   setupBacktest();
   setupSectionToggles();
-  setupStrategySelector();
   loadFromURL();
 });
 
@@ -108,12 +116,7 @@ function loadFromURL() {
   const params = new URLSearchParams(window.location.search);
   const ticker = params.get('ticker');
   const range = params.get('range') || '6mo';
-  const strategy = params.get('strategy') || 'balanced';
-
-  if (strategySelect) {
-    strategySelect.value = strategy;
-    state.currentStrategy = strategySelect.value;
-  }
+  state.currentStrategy = 'balanced';
 
   if (!ticker) return;
 
@@ -129,16 +132,8 @@ function pushURL(ticker, range) {
   const url = new URL(window.location);
   url.searchParams.set('ticker', ticker);
   url.searchParams.set('range', range);
-  url.searchParams.set('strategy', state.currentStrategy);
+  url.searchParams.delete('strategy');
   history.replaceState({}, '', url);
-}
-
-function setupStrategySelector() {
-  if (!strategySelect) return;
-  strategySelect.addEventListener('change', () => {
-    state.currentStrategy = strategySelect.value;
-    if (state.currentTicker) search(state.currentTicker, state.currentRange);
-  });
 }
 
 function setupSearch() {
@@ -244,7 +239,7 @@ function renderAutocomplete(suggestions) {
 async function search(ticker, range) {
   state.currentTicker = ticker;
   state.currentRange = range;
-  state.currentStrategy = strategySelect?.value || state.currentStrategy;
+  state.currentStrategy = 'balanced';
 
   showLoading(true);
   hideError();
@@ -333,11 +328,18 @@ function renderSignalOverview(data) {
   const summary = data.signalSummary || {};
   const scores = data.signalScores || {};
   const marketState = data.marketState || {};
+  const profile = data.profile || {};
+  const profileMeta = [
+    profile.market ? formatLocalizedValue(profile.market) : '',
+    profile.style ? formatProfileStyle(profile.style) : '',
+    profile.calibration?.calibratedThrough ? `KR 기준 ${profile.calibration.calibratedThrough}` : '',
+  ].filter(Boolean).join(' · ');
 
   signalOverview.classList.remove('hidden');
   signalHeadline.textContent = formatSignal(summary.signal);
   signalHeadline.className = `signal-headline signal-${String(summary.signal || 'neutral').toLowerCase()}`;
-  signalStrength.textContent = `${formatStrength(summary.strength)} · ${formatStrategy(data.strategy)}`;
+  signalStrength.textContent = `${formatStrength(summary.strength)} · ${formatProfile(profile.key)}`;
+  renderProfileBanner(profile, profileMeta);
 
   signalReasons.innerHTML = (summary.reasons || []).map(reason => `<li>${escapeHtml(reason)}</li>`).join('');
   signalRisks.innerHTML = (summary.risks || []).map(risk => `<li>${escapeHtml(risk)}</li>`).join('');
@@ -350,6 +352,9 @@ function renderSignalOverview(data) {
   `;
 
   marketBadges.innerHTML = [
+    profile.market ? renderBadge(profile.market) : '',
+    profile.style ? renderBadge(formatProfileStyle(profile.style)) : '',
+    profile.calibration?.calibratedThrough ? renderBadge(`KR 기준 ${profile.calibration.calibratedThrough}`) : '',
     marketState.trend ? renderBadge(marketState.trend) : '',
     marketState.trendStrength ? renderBadge(marketState.trendStrength) : '',
     marketState.momentum ? renderBadge(marketState.momentum) : '',
@@ -360,6 +365,23 @@ function renderSignalOverview(data) {
   const reasonsCount = (summary.reasons || []).length;
   const risksCount = (summary.risks || []).length;
   signalSummaryBody.dataset.columns = reasonsCount && risksCount ? '2' : '1';
+}
+
+function renderProfileBanner(profile, profileMeta) {
+  if (!profileBanner) return;
+
+  if (!profile?.key) {
+    profileBanner.classList.add('hidden');
+    profileBanner.innerHTML = '';
+    return;
+  }
+
+  profileBanner.innerHTML = `
+    <div class="signal-profile-eyebrow">활성 프로필</div>
+    <div class="signal-profile-name">${escapeHtml(profile.label || formatProfile(profile.key))}</div>
+    <div class="signal-profile-meta">${escapeHtml(profileMeta || '기본 기준선')}</div>
+  `;
+  profileBanner.classList.remove('hidden');
 }
 
 function renderScoreCard(label, value, hint, tone) {
@@ -378,6 +400,10 @@ function renderBadge(value) {
 
 function resetSignalPanels() {
   signalOverview.classList.add('hidden');
+  if (profileBanner) {
+    profileBanner.classList.add('hidden');
+    profileBanner.innerHTML = '';
+  }
   signalReasons.innerHTML = '';
   signalRisks.innerHTML = '';
   scoreCards.innerHTML = '';
@@ -929,7 +955,9 @@ function formatSignal(signal) {
 
 function formatStrength(strength) { return formatLocalizedValue(strength || 'watch'); }
 function formatStrategy(strategy) { return STRATEGY_LABELS[strategy] || strategy || STRATEGY_LABELS.balanced; }
+function formatProfile(profile) { return PROFILE_LABELS[profile] || profile || PROFILE_LABELS.us_broad_large_cap; }
 function formatScoreValue(value) { return typeof value === 'number' ? `${value}/100` : formatLocalizedValue(value || 'unknown'); }
+function formatProfileStyle(style) { return formatLocalizedValue(style || 'unknown'); }
 
 function formatLocalizedValue(value) {
   const normalized = String(value || '').trim().toLowerCase().replace(/\s+/g, '_');
@@ -955,6 +983,10 @@ function formatLocalizedValue(value) {
     below_ema20: 'EMA20 \uc544\ub798',
     above_sma200: 'SMA200 \uc704',
     below_sma200: 'SMA200 \uc544\ub798',
+    kr: 'KR',
+    us: 'US',
+    broad_large_cap: '\ub300\ud615\uc8fc',
+    megacap_growth: '\uba54\uac00\ucea1 \uc131\uc7a5',
     long: '\ubcf4\uc720 \uc911',
     cash: '\ud604\uae08',
   };
@@ -999,9 +1031,7 @@ function escapeAttribute(str) { return String(str).replace(/&/g, '&amp;').replac
 function applyStaticLocalization() {
   tickerInput.placeholder = '\uc608: \uc0bc\uc131\uc804\uc790, Apple, AAPL, 005930';
   setOptionText(suffixSelect, ['\uc790\ub3d9', 'KOSPI (.KS)', 'KOSDAQ (.KQ)', '\uc811\ubbf8\uc0ac \uc5c6\uc74c']);
-  setOptionText(strategySelect, [STRATEGY_LABELS.balanced, STRATEGY_LABELS.trend_following, STRATEGY_LABELS.mean_reversion]);
   setButtonText(searchBtn, '\uc870\ud68c');
-  setText('.strategy-label', '\uc804\ub7b5');
   setText('#loadingSpinner p', '\ub370\uc774\ud130\ub97c \ubd88\ub7ec\uc624\ub294 \uc911\uc785\ub2c8\ub2e4.');
   setText('.tab-btn[data-tab="technical"]', '\uae30\uc220\uc801 \ubd84\uc11d');
   setText('.tab-btn[data-tab="financials"]', '\uc7ac\ubb34\uc81c\ud45c');

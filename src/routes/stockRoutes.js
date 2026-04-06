@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { resolveTickerAsync } from '../services/tickerResolver.js';
 import { getPriceHistory, getFinancials } from '../services/yahooFinanceService.js';
+import { resolveMarketProfile, SUPPORTED_PROFILES } from '../services/marketProfile.js';
 import { calculateBacktest, calculateTechnicalAnalysis, calculateTechnicalAnalysisForDate } from '../services/technicalService.js';
 import { SUPPORTED_STRATEGIES } from '../services/scoreWeights.js';
 import { sendError, sendSuccess } from '../utils/apiResponse.js';
@@ -10,6 +11,10 @@ const VALID_RANGES = new Set(['1mo', '3mo', '6mo', '1y', '2y', '5y']);
 
 function getStrategy(strategy) {
   return SUPPORTED_STRATEGIES.includes(strategy) ? strategy : 'balanced';
+}
+
+function getRequestedProfile(profile) {
+  return SUPPORTED_PROFILES.includes(profile) ? profile : 'auto';
 }
 
 function parseSnapshotDate(query) {
@@ -46,7 +51,7 @@ function recordExecutionSummary(res, summary) {
   };
 }
 
-function buildHistoricalSignalPayload({ ticker, resolvedTicker, datedAnalysis, strategy, range, suffix, canonicalPath }) {
+function buildHistoricalSignalPayload({ ticker, resolvedTicker, datedAnalysis, strategy, profile, range, suffix, canonicalPath, dataQuality }) {
   const signal = datedAnalysis.signalSummary.signal === 'NEUTRAL'
     ? 'HOLD'
     : datedAnalysis.signalSummary.signal;
@@ -55,11 +60,13 @@ function buildHistoricalSignalPayload({ ticker, resolvedTicker, datedAnalysis, s
     ticker,
     resolvedTicker,
     strategy,
+    profile,
     request: {
       endpoint: canonicalPath,
       range,
       suffix,
       snapshotDate: datedAnalysis.requestedDate,
+      profile: profile?.requested || 'auto',
     },
     dates: {
       requested: datedAnalysis.requestedDate,
@@ -84,12 +91,13 @@ function buildHistoricalSignalPayload({ ticker, resolvedTicker, datedAnalysis, s
       signal,
     },
     snapshot: datedAnalysis.snapshot,
+    dataQuality,
   };
 }
 
 async function handleHistoricalSnapshot(req, res, next, canonicalPath) {
   try {
-    const { ticker, range = '2y', suffix = 'auto', strategy = 'balanced' } = req.query;
+    const { ticker, range = '2y', suffix = 'auto', strategy = 'balanced', profile = 'auto' } = req.query;
     const snapshotDate = parseSnapshotDate(req.query);
 
     if (!validateTicker(ticker, res)) return;
@@ -100,9 +108,14 @@ async function handleHistoricalSnapshot(req, res, next, canonicalPath) {
     if (!validateRange(range, res)) return;
 
     const normalizedStrategy = getStrategy(strategy);
+    const requestedProfile = getRequestedProfile(profile);
     const resolvedTicker = await resolveTickerAsync(ticker, suffix);
+    const resolvedProfile = resolveMarketProfile({ ticker, resolvedTicker, profile: requestedProfile });
     const priceData = await getPriceHistory(resolvedTicker, range);
-    const datedAnalysis = calculateTechnicalAnalysisForDate(priceData.prices, snapshotDate, { strategy: normalizedStrategy });
+    const datedAnalysis = calculateTechnicalAnalysisForDate(priceData.prices, snapshotDate, {
+      strategy: normalizedStrategy,
+      profile: resolvedProfile.key,
+    });
 
     recordExecutionSummary(res, {
       route: 'historical-snapshot',
@@ -110,6 +123,7 @@ async function handleHistoricalSnapshot(req, res, next, canonicalPath) {
       resolvedTicker,
       range,
       strategy: normalizedStrategy,
+      profile: resolvedProfile.key,
       requestedDate: snapshotDate,
       actualDate: datedAnalysis.actualDate,
       signal: datedAnalysis.signalSummary.signal,
@@ -119,18 +133,20 @@ async function handleHistoricalSnapshot(req, res, next, canonicalPath) {
 
     sendSuccess(
       res,
-      {
-        ...buildHistoricalSignalPayload({
-          ticker,
-          resolvedTicker,
-          datedAnalysis,
-          strategy: normalizedStrategy,
-          range,
-          suffix,
-          canonicalPath,
-        }),
+      buildHistoricalSignalPayload({
+        ticker,
+        resolvedTicker,
+        datedAnalysis,
+        strategy: normalizedStrategy,
+        profile: {
+          requested: requestedProfile,
+          ...resolvedProfile,
+        },
+        range,
+        suffix,
+        canonicalPath,
         dataQuality: priceData.dataQuality,
-      },
+      }),
       { endpoint: canonicalPath }
     );
   } catch (err) {
@@ -146,15 +162,20 @@ async function handleHistoricalSnapshot(req, res, next, canonicalPath) {
 
 router.get('/technical', async (req, res, next) => {
   try {
-    const { ticker, range = '6mo', suffix = 'auto', strategy = 'balanced' } = req.query;
+    const { ticker, range = '6mo', suffix = 'auto', strategy = 'balanced', profile = 'auto' } = req.query;
 
     if (!validateTicker(ticker, res)) return;
     if (!validateRange(range, res)) return;
 
     const normalizedStrategy = getStrategy(strategy);
+    const requestedProfile = getRequestedProfile(profile);
     const resolvedTicker = await resolveTickerAsync(ticker, suffix);
+    const resolvedProfile = resolveMarketProfile({ ticker, resolvedTicker, profile: requestedProfile });
     const priceData = await getPriceHistory(resolvedTicker, range);
-    const analysis = calculateTechnicalAnalysis(priceData.prices, { strategy: normalizedStrategy });
+    const analysis = calculateTechnicalAnalysis(priceData.prices, {
+      strategy: normalizedStrategy,
+      profile: resolvedProfile.key,
+    });
 
     recordExecutionSummary(res, {
       route: 'technical',
@@ -162,6 +183,7 @@ router.get('/technical', async (req, res, next) => {
       resolvedTicker,
       range,
       strategy: normalizedStrategy,
+      profile: resolvedProfile.key,
       signal: analysis.signalSummary.signal,
       score: analysis.signalSummary.score,
       dataQualityWarnings: priceData.dataQuality?.warnings?.map(item => item.code) ?? [],
@@ -171,10 +193,15 @@ router.get('/technical', async (req, res, next) => {
       ticker,
       resolvedTicker,
       strategy: normalizedStrategy,
+      profile: {
+        requested: requestedProfile,
+        ...resolvedProfile,
+      },
       request: {
         endpoint: '/api/stock/technical',
         range,
         suffix,
+        profile: requestedProfile,
       },
       meta: priceData.meta,
       dataQuality: priceData.dataQuality,
@@ -237,7 +264,7 @@ router.get('/historical-snapshot', async (req, res, next) => {
 
 router.get('/backtest', async (req, res, next) => {
   try {
-    const { ticker, range = '5y', suffix = 'auto', strategy = 'balanced' } = req.query;
+    const { ticker, range = '5y', suffix = 'auto', strategy = 'balanced', profile = 'auto' } = req.query;
     const { startDate, endDate } = parseBacktestDates(req.query);
 
     if (!validateTicker(ticker, res)) return;
@@ -248,9 +275,14 @@ router.get('/backtest', async (req, res, next) => {
     if (!validateRange(range, res)) return;
 
     const normalizedStrategy = getStrategy(strategy);
+    const requestedProfile = getRequestedProfile(profile);
     const resolvedTicker = await resolveTickerAsync(ticker, suffix);
+    const resolvedProfile = resolveMarketProfile({ ticker, resolvedTicker, profile: requestedProfile });
     const priceData = await getPriceHistory(resolvedTicker, range);
-    const backtest = calculateBacktest(priceData.prices, startDate, endDate, { strategy: normalizedStrategy });
+    const backtest = calculateBacktest(priceData.prices, startDate, endDate, {
+      strategy: normalizedStrategy,
+      profile: resolvedProfile.key,
+    });
 
     recordExecutionSummary(res, {
       route: 'backtest',
@@ -258,6 +290,7 @@ router.get('/backtest', async (req, res, next) => {
       resolvedTicker,
       range,
       strategy: normalizedStrategy,
+      profile: resolvedProfile.key,
       startDate,
       endDate,
       trades: backtest.summary?.totalTrades ?? null,
@@ -269,12 +302,17 @@ router.get('/backtest', async (req, res, next) => {
       ticker,
       resolvedTicker,
       strategy: normalizedStrategy,
+      profile: {
+        requested: requestedProfile,
+        ...resolvedProfile,
+      },
       request: {
         endpoint: '/api/stock/backtest',
         range,
         suffix,
         startDate,
         endDate,
+        profile: requestedProfile,
       },
       dataQuality: priceData.dataQuality,
       ...backtest,
