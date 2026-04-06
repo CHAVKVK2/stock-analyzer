@@ -7,6 +7,7 @@ import searchRoutes from './src/routes/searchRoutes.js';
 import newsRoutes from './src/routes/newsRoutes.js';
 import sentimentRoutes from './src/routes/sentimentRoutes.js';
 import errorHandler from './src/middleware/errorHandler.js';
+import requestAudit from './src/middleware/requestAudit.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -16,6 +17,7 @@ const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
 app.use(express.static(join(__dirname, 'public')));
+app.use(requestAudit);
 
 app.use('/api/stock', stockRoutes);
 app.use('/api/search', searchRoutes);

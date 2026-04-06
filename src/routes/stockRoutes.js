@@ -42,6 +42,13 @@ function buildHistoricalSignalResponse({ ticker, resolvedTicker, datedAnalysis, 
   };
 }
 
+function recordExecutionSummary(res, summary) {
+  res.locals.executionSummary = {
+    ...(res.locals.executionSummary || {}),
+    ...summary,
+  };
+}
+
 router.get('/technical', async (req, res, next) => {
   try {
     const { ticker, range = '6mo', suffix = 'auto', strategy = 'balanced' } = req.query;
@@ -53,11 +60,23 @@ router.get('/technical', async (req, res, next) => {
     const priceData = await getPriceHistory(resolvedTicker, range);
     const analysis = calculateTechnicalAnalysis(priceData.prices, { strategy: normalizedStrategy });
 
+    recordExecutionSummary(res, {
+      route: 'technical',
+      ticker,
+      resolvedTicker,
+      range,
+      strategy: normalizedStrategy,
+      signal: analysis.signalSummary.signal,
+      score: analysis.signalSummary.score,
+      dataQualityWarnings: priceData.dataQuality?.warnings?.map(item => item.code) ?? [],
+    });
+
     res.json({
       ticker,
       resolvedTicker,
       strategy: normalizedStrategy,
       meta: priceData.meta,
+      dataQuality: priceData.dataQuality,
       prices: priceData.prices,
       indicators: analysis.indicators,
       marketState: analysis.marketState,
@@ -76,8 +95,18 @@ router.get('/financials', async (req, res, next) => {
 
     const resolvedTicker = await resolveTickerAsync(ticker, suffix);
     const data = await getFinancials(resolvedTicker);
+    recordExecutionSummary(res, {
+      route: 'financials',
+      ticker,
+      resolvedTicker,
+    });
     res.json(data);
   } catch (err) {
+    recordExecutionSummary(res, {
+      route: 'financials',
+      ticker: req.query.ticker,
+      error: err.message,
+    });
     next(err);
   }
 });
@@ -94,13 +123,35 @@ router.get('/signal-date', async (req, res, next) => {
     const priceData = await getPriceHistory(resolvedTicker, range);
     const datedAnalysis = calculateTechnicalAnalysisForDate(priceData.prices, date, { strategy: normalizedStrategy });
 
-    res.json(buildHistoricalSignalResponse({
+    recordExecutionSummary(res, {
+      route: 'signal-date',
+      ticker,
+      resolvedTicker,
+      range,
+      strategy: normalizedStrategy,
+      requestedDate: date,
+      actualDate: datedAnalysis.actualDate,
+      signal: datedAnalysis.signalSummary.signal,
+      score: datedAnalysis.signalSummary.score,
+      dataQualityWarnings: priceData.dataQuality?.warnings?.map(item => item.code) ?? [],
+    });
+
+    res.json({
+      ...buildHistoricalSignalResponse({
       ticker,
       resolvedTicker,
       datedAnalysis,
       strategy: normalizedStrategy,
-    }));
+      }),
+      dataQuality: priceData.dataQuality,
+    });
   } catch (err) {
+    recordExecutionSummary(res, {
+      route: 'signal-date',
+      ticker: req.query.ticker,
+      requestedDate: req.query.date,
+      error: err.message,
+    });
     next(err);
   }
 });
@@ -117,13 +168,35 @@ router.get('/historical-snapshot', async (req, res, next) => {
     const priceData = await getPriceHistory(resolvedTicker, range);
     const datedAnalysis = calculateTechnicalAnalysisForDate(priceData.prices, targetDate, { strategy: normalizedStrategy });
 
-    res.json(buildHistoricalSignalResponse({
+    recordExecutionSummary(res, {
+      route: 'historical-snapshot',
+      ticker,
+      resolvedTicker,
+      range,
+      strategy: normalizedStrategy,
+      requestedDate: targetDate,
+      actualDate: datedAnalysis.actualDate,
+      signal: datedAnalysis.signalSummary.signal,
+      score: datedAnalysis.signalSummary.score,
+      dataQualityWarnings: priceData.dataQuality?.warnings?.map(item => item.code) ?? [],
+    });
+
+    res.json({
+      ...buildHistoricalSignalResponse({
       ticker,
       resolvedTicker,
       datedAnalysis,
       strategy: normalizedStrategy,
-    }));
+      }),
+      dataQuality: priceData.dataQuality,
+    });
   } catch (err) {
+    recordExecutionSummary(res, {
+      route: 'historical-snapshot',
+      ticker: req.query.ticker,
+      requestedDate: req.query.target_date,
+      error: err.message,
+    });
     next(err);
   }
 });
@@ -140,13 +213,34 @@ router.get('/backtest', async (req, res, next) => {
     const priceData = await getPriceHistory(resolvedTicker, range);
     const backtest = calculateBacktest(priceData.prices, startDate, endDate, { strategy: normalizedStrategy });
 
+    recordExecutionSummary(res, {
+      route: 'backtest',
+      ticker,
+      resolvedTicker,
+      range,
+      strategy: normalizedStrategy,
+      startDate,
+      endDate,
+      trades: backtest.summary?.totalTrades ?? null,
+      cumulativeReturnPct: backtest.summary?.cumulativeReturnPct ?? null,
+      dataQualityWarnings: priceData.dataQuality?.warnings?.map(item => item.code) ?? [],
+    });
+
     res.json({
       ticker,
       resolvedTicker,
       strategy: normalizedStrategy,
+      dataQuality: priceData.dataQuality,
       ...backtest,
     });
   } catch (err) {
+    recordExecutionSummary(res, {
+      route: 'backtest',
+      ticker: req.query.ticker,
+      startDate: req.query.startDate,
+      endDate: req.query.endDate,
+      error: err.message,
+    });
     next(err);
   }
 });
