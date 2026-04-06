@@ -39,6 +39,47 @@
 
 ## Active Plan
 
+## 2026-04-06 - Ralph Audit and Fix Loop Bootstrap
+
+### Goal
+- Add a Codex-friendly audit loop and a paired fix loop so the repo can repeatedly check visible UI and public API regressions, write findings to markdown, and then repair one audited issue at a time with explicit verification.
+
+### Read First
+- `AGENTS.md`
+- `CURRENT_STATE.md`
+- `DECISIONS.md`
+- `public/index.html`
+- `public/js/app.js`
+- `public/js/charts.js`
+- `test/smoke.test.js`
+
+### Expected Changes
+- `.codex/ralph-audit/README.md`
+- `.codex/ralph-audit/CODEX.md`
+- `.codex/ralph-audit/prd.json`
+- `.codex/ralph-audit/ralph.ps1`
+- `.codex/ralph-audit/ralph-fix.ps1`
+- `.codex/ralph-audit/ralph.sh`
+- `.codex/ralph-audit/ralph-fix.sh`
+- `.gitignore`
+- `package.json`
+
+### Validation
+- Review the audit stories to ensure they match real repo risks.
+- Validate the PowerShell scripts parse as valid PowerShell.
+- Run `node --test` to ensure repo behavior still works.
+- Confirm `git status --short --branch` shows only intended changes.
+
+### Done When
+- The repo contains a read-only audit loop tailored to `stock-analyzer`.
+- The repo contains a paired fix loop that consumes completed audit reports.
+- Windows-friendly runner scripts exist because this machine is PowerShell-first.
+- The project exposes npm scripts for the audit and fix loop.
+
+### Notes
+- The local desktop environment currently does not expose a runnable `codex` CLI binary from PowerShell, so the runner files are scaffolded and documented but cannot be fully exercised from this session.
+- The first audit stories focus on the exact classes of regressions this project has already hit: broken Korean text, search control drift, chart indicator visibility, indicator defaults, and public API/page regressions.
+
 ## 2026-04-03 - Codex Workflow Foundation
 
 ### Goal

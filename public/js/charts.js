@@ -1,4 +1,4 @@
-'use strict';
+﻿'use strict';
 
 if (window.Chart) {
   Chart.defaults.color = '#8b949e';
@@ -28,8 +28,8 @@ const lightweightState = {
     resistances: [],
   },
   visible: {
-    bollinger: true,
-    movingAverages: true,
+    bollinger: false,
+    movingAverages: false,
     supportResistance: true,
     backtestMarkers: false,
   },

@@ -1,0 +1,105 @@
+{
+  "project": "stock-analyzer",
+  "stories": [
+    {
+      "id": "ui-home-copy-integrity",
+      "title": "Homepage visible copy must not contain broken Korean text",
+      "mode": "audit",
+      "passes": false,
+      "fixed": false,
+      "scope": [
+        "public/index.html",
+        "public/js/app.js",
+        "public/js/charts.js"
+      ],
+      "prompt": "Audit the homepage for visible Korean copy integrity. Look for mojibake, broken labels, malformed button text, and visible placeholder text that is not readable Korean. Focus on the search area, focus-guide cards, chart labels, button labels, and section headers.",
+      "acceptance": [
+        "Created audit/ui-home-copy-integrity.md",
+        "Includes pass/fail status",
+        "Includes concrete repro steps",
+        "Includes likely file paths"
+      ],
+      "output": "audit/ui-home-copy-integrity.md"
+    },
+    {
+      "id": "ui-search-controls",
+      "title": "Search controls should be singular and usable",
+      "mode": "audit",
+      "passes": false,
+      "fixed": false,
+      "scope": [
+        "public/index.html",
+        "public/js/app.js",
+        "public/css/styles.css"
+      ],
+      "prompt": "Audit the homepage search controls. Verify there is exactly one primary 조회 action in the search bar, the button is visible, Enter key search still works, and suffix selection does not create duplicate or confusing controls.",
+      "acceptance": [
+        "Created audit/ui-search-controls.md",
+        "Calls out any duplicate or missing 조회 button issue",
+        "Includes likely file paths",
+        "Includes verification steps"
+      ],
+      "output": "audit/ui-search-controls.md"
+    },
+    {
+      "id": "ui-indicator-visibility",
+      "title": "RSI and MACD must render when toggled",
+      "mode": "audit",
+      "passes": false,
+      "fixed": false,
+      "scope": [
+        "public/js/charts.js",
+        "public/js/app.js",
+        "public/index.html"
+      ],
+      "prompt": "Audit chart indicator visibility. Verify that RSI and MACD can actually appear in the price-flow area when toggled, that hidden containers do not prevent rendering, and that chart defaults match the intended UX.",
+      "acceptance": [
+        "Created audit/ui-indicator-visibility.md",
+        "Mentions actual render blockers if found",
+        "Includes likely file paths",
+        "Includes verification commands"
+      ],
+      "output": "audit/ui-indicator-visibility.md"
+    },
+    {
+      "id": "ui-indicator-defaults",
+      "title": "EMA/SMA and Bollinger defaults must match intended off state",
+      "mode": "audit",
+      "passes": false,
+      "fixed": false,
+      "scope": [
+        "public/index.html",
+        "public/js/charts.js",
+        "public/js/app.js"
+      ],
+      "prompt": "Audit default indicator state. Confirm whether EMA/SMA and Bollinger Bands are off by default in both UI controls and initial chart visibility state. Flag any mismatch between checkbox defaults and chart rendering defaults.",
+      "acceptance": [
+        "Created audit/ui-indicator-defaults.md",
+        "States whether UI and chart state are aligned",
+        "Includes likely file paths",
+        "Includes verification steps"
+      ],
+      "output": "audit/ui-indicator-defaults.md"
+    },
+    {
+      "id": "api-public-surface",
+      "title": "Public pages and stock APIs should still respond with expected status",
+      "mode": "audit",
+      "passes": false,
+      "fixed": false,
+      "scope": [
+        "server.js",
+        "src/routes/stockRoutes.js",
+        "test/smoke.test.js"
+      ],
+      "prompt": "Audit the public surface. Verify that /, /about, /contact, /privacy respond, /api/stock/technical still works, the deprecated signal-date endpoint remains 410, and historical-snapshot out-of-range requests still return 404 NO_DATA_IN_RANGE rather than 500.",
+      "acceptance": [
+        "Created audit/api-public-surface.md",
+        "Mentions the exact statuses observed",
+        "Includes likely file paths",
+        "Includes verification commands"
+      ],
+      "output": "audit/api-public-surface.md"
+    }
+  ]
+}

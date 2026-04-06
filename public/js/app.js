@@ -137,7 +137,7 @@ function pushURL(ticker, range) {
 }
 
 function setupSearch() {
-  searchBtn.addEventListener('click', triggerSearch);
+  searchBtn?.addEventListener('click', triggerSearch);
   tickerInput.addEventListener('keydown', event => {
     if (event.key === 'Enter') triggerSearch();
   });
@@ -1031,7 +1031,7 @@ function escapeAttribute(str) { return String(str).replace(/&/g, '&amp;').replac
 function applyStaticLocalization() {
   tickerInput.placeholder = '\uc608: \uc0bc\uc131\uc804\uc790, Apple, AAPL, 005930';
   setOptionText(suffixSelect, ['\uc790\ub3d9', 'KOSPI (.KS)', 'KOSDAQ (.KQ)', '\uc811\ubbf8\uc0ac \uc5c6\uc74c']);
-  setButtonText(searchBtn, '\uc870\ud68c');
+  if (searchBtn) setButtonText(searchBtn, '\uc870\ud68c');
   setText('#loadingSpinner p', '\ub370\uc774\ud130\ub97c \ubd88\ub7ec\uc624\ub294 \uc911\uc785\ub2c8\ub2e4.');
   setText('.tab-btn[data-tab="technical"]', '\uae30\uc220\uc801 \ubd84\uc11d');
   setText('.tab-btn[data-tab="financials"]', '\uc7ac\ubb34\uc81c\ud45c');
