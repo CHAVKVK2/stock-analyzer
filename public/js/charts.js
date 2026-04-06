@@ -118,6 +118,7 @@ function toggleRSI(show) {
   const card = document.getElementById('rsiChartCard');
   if (!card) return;
   card.classList.toggle('hidden', !show);
+  syncIndicatorDockVisibility();
   if (show && lightweightState.technicalData) {
     buildRSIChart(lightweightState.technicalData);
   } else {
@@ -129,6 +130,7 @@ function toggleMACD(show) {
   const card = document.getElementById('macdChartCard');
   if (!card) return;
   card.classList.toggle('hidden', !show);
+  syncIndicatorDockVisibility();
   if (show && lightweightState.technicalData) {
     buildMACDChart(lightweightState.technicalData);
   } else {
@@ -139,6 +141,16 @@ function toggleMACD(show) {
 function toggleBacktestMarkers(show) {
   lightweightState.visible.backtestMarkers = show;
   syncBacktestMarkers();
+}
+
+function syncIndicatorDockVisibility() {
+  const dock = document.getElementById('indicatorDock');
+  const rsiCard = document.getElementById('rsiChartCard');
+  const macdCard = document.getElementById('macdChartCard');
+  if (!dock || !rsiCard || !macdCard) return;
+
+  const showDock = !rsiCard.classList.contains('hidden') || !macdCard.classList.contains('hidden');
+  dock.classList.toggle('hidden', !showDock);
 }
 
 function buildPriceChart(data) {
