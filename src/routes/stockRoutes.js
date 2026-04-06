@@ -25,7 +25,7 @@ function parseBacktestDates(query) {
 
 function validateTicker(ticker, res) {
   if (!ticker) {
-    sendError(res, 400, 'INVALID_REQUEST', 'ticker \ud30c\ub77c\ubbf8\ud130\uac00 \ud544\uc694\ud569\ub2c8\ub2e4.');
+    sendError(res, 400, 'INVALID_REQUEST', 'ticker 파라미터가 필요합니다.');
     return false;
   }
   return true;
@@ -33,10 +33,17 @@ function validateTicker(ticker, res) {
 
 function validateRange(range, res) {
   if (!VALID_RANGES.has(range)) {
-    sendError(res, 400, 'INVALID_RANGE', `\uc9c0\uc6d0\ud558\uc9c0 \uc54a\ub294 range \uac12\uc785\ub2c8\ub2e4: ${range}`);
+    sendError(res, 400, 'INVALID_RANGE', `지원하지 않는 range 값입니다: ${range}`);
     return false;
   }
   return true;
+}
+
+function recordExecutionSummary(res, summary) {
+  res.locals.executionSummary = {
+    ...(res.locals.executionSummary || {}),
+    ...summary,
+  };
 }
 
 function buildHistoricalSignalPayload({ ticker, resolvedTicker, datedAnalysis, strategy, range, suffix, canonicalPath }) {
@@ -87,7 +94,7 @@ async function handleHistoricalSnapshot(req, res, next, canonicalPath) {
 
     if (!validateTicker(ticker, res)) return;
     if (!snapshotDate) {
-      sendError(res, 400, 'INVALID_REQUEST', 'snapshot_date \ud30c\ub77c\ubbf8\ud130\uac00 \ud544\uc694\ud569\ub2c8\ub2e4.');
+      sendError(res, 400, 'INVALID_REQUEST', 'snapshot_date 파라미터가 필요합니다.');
       return;
     }
     if (!validateRange(range, res)) return;
@@ -97,20 +104,42 @@ async function handleHistoricalSnapshot(req, res, next, canonicalPath) {
     const priceData = await getPriceHistory(resolvedTicker, range);
     const datedAnalysis = calculateTechnicalAnalysisForDate(priceData.prices, snapshotDate, { strategy: normalizedStrategy });
 
+    recordExecutionSummary(res, {
+      route: 'historical-snapshot',
+      ticker,
+      resolvedTicker,
+      range,
+      strategy: normalizedStrategy,
+      requestedDate: snapshotDate,
+      actualDate: datedAnalysis.actualDate,
+      signal: datedAnalysis.signalSummary.signal,
+      score: datedAnalysis.signalSummary.score,
+      dataQualityWarnings: priceData.dataQuality?.warnings?.map(item => item.code) ?? [],
+    });
+
     sendSuccess(
       res,
-      buildHistoricalSignalPayload({
-        ticker,
-        resolvedTicker,
-        datedAnalysis,
-        strategy: normalizedStrategy,
-        range,
-        suffix,
-        canonicalPath,
-      }),
+      {
+        ...buildHistoricalSignalPayload({
+          ticker,
+          resolvedTicker,
+          datedAnalysis,
+          strategy: normalizedStrategy,
+          range,
+          suffix,
+          canonicalPath,
+        }),
+        dataQuality: priceData.dataQuality,
+      },
       { endpoint: canonicalPath }
     );
   } catch (err) {
+    recordExecutionSummary(res, {
+      route: 'historical-snapshot',
+      ticker: req.query.ticker,
+      requestedDate: parseSnapshotDate(req.query),
+      error: err.message,
+    });
     next(err);
   }
 }
@@ -127,6 +156,17 @@ router.get('/technical', async (req, res, next) => {
     const priceData = await getPriceHistory(resolvedTicker, range);
     const analysis = calculateTechnicalAnalysis(priceData.prices, { strategy: normalizedStrategy });
 
+    recordExecutionSummary(res, {
+      route: 'technical',
+      ticker,
+      resolvedTicker,
+      range,
+      strategy: normalizedStrategy,
+      signal: analysis.signalSummary.signal,
+      score: analysis.signalSummary.score,
+      dataQualityWarnings: priceData.dataQuality?.warnings?.map(item => item.code) ?? [],
+    });
+
     sendSuccess(res, {
       ticker,
       resolvedTicker,
@@ -137,6 +177,7 @@ router.get('/technical', async (req, res, next) => {
         suffix,
       },
       meta: priceData.meta,
+      dataQuality: priceData.dataQuality,
       prices: priceData.prices,
       indicators: analysis.indicators,
       marketState: analysis.marketState,
@@ -156,6 +197,12 @@ router.get('/financials', async (req, res, next) => {
     const resolvedTicker = await resolveTickerAsync(ticker, suffix);
     const data = await getFinancials(resolvedTicker);
 
+    recordExecutionSummary(res, {
+      route: 'financials',
+      ticker,
+      resolvedTicker,
+    });
+
     sendSuccess(res, {
       ticker,
       resolvedTicker,
@@ -166,6 +213,11 @@ router.get('/financials', async (req, res, next) => {
       ...data,
     }, { endpoint: '/api/stock/financials' });
   } catch (err) {
+    recordExecutionSummary(res, {
+      route: 'financials',
+      ticker: req.query.ticker,
+      error: err.message,
+    });
     next(err);
   }
 });
@@ -175,7 +227,7 @@ router.get('/signal-date', async (req, res) => {
     res,
     410,
     'DEPRECATED_ENDPOINT',
-    'signal-date \uc5d4\ub4dc\ud3ec\uc778\ud2b8\ub294 \ub354 \uc774\uc0c1 \uc0ac\uc6a9\ud558\uc9c0 \uc54a\uc2b5\ub2c8\ub2e4. /api/stock/historical-snapshot?snapshot_date=YYYY-MM-DD \ub97c \uc0ac\uc6a9\ud574\uc8fc\uc138\uc694.'
+    'signal-date 엔드포인트는 더 이상 사용하지 않습니다. /api/stock/historical-snapshot?snapshot_date=YYYY-MM-DD 를 사용해주세요.'
   );
 });
 
@@ -190,7 +242,7 @@ router.get('/backtest', async (req, res, next) => {
 
     if (!validateTicker(ticker, res)) return;
     if (!startDate || !endDate) {
-      sendError(res, 400, 'INVALID_REQUEST', 'start_date\uc640 end_date \ud30c\ub77c\ubbf8\ud130\uac00 \ud544\uc694\ud569\ub2c8\ub2e4.');
+      sendError(res, 400, 'INVALID_REQUEST', 'start_date와 end_date 파라미터가 필요합니다.');
       return;
     }
     if (!validateRange(range, res)) return;
@@ -199,6 +251,19 @@ router.get('/backtest', async (req, res, next) => {
     const resolvedTicker = await resolveTickerAsync(ticker, suffix);
     const priceData = await getPriceHistory(resolvedTicker, range);
     const backtest = calculateBacktest(priceData.prices, startDate, endDate, { strategy: normalizedStrategy });
+
+    recordExecutionSummary(res, {
+      route: 'backtest',
+      ticker,
+      resolvedTicker,
+      range,
+      strategy: normalizedStrategy,
+      startDate,
+      endDate,
+      trades: backtest.summary?.totalTrades ?? null,
+      cumulativeReturnPct: backtest.summary?.cumulativeReturnPct ?? null,
+      dataQualityWarnings: priceData.dataQuality?.warnings?.map(item => item.code) ?? [],
+    });
 
     sendSuccess(res, {
       ticker,
@@ -211,9 +276,17 @@ router.get('/backtest', async (req, res, next) => {
         startDate,
         endDate,
       },
+      dataQuality: priceData.dataQuality,
       ...backtest,
     }, { endpoint: '/api/stock/backtest' });
   } catch (err) {
+    recordExecutionSummary(res, {
+      route: 'backtest',
+      ticker: req.query.ticker,
+      startDate: req.query.start_date,
+      endDate: req.query.end_date,
+      error: err.message,
+    });
     next(err);
   }
 });

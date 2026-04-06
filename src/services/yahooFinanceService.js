@@ -1,6 +1,7 @@
 import YahooFinance from 'yahoo-finance2';
 import { searchKrxStocks } from './krxService.js';
 import { resolveLocalAlias, searchLocalAliases } from './stockAliasCatalog.js';
+import { assertPriceDataQuality } from './priceDataQuality.js';
 
 const yahooFinance = new YahooFinance({ suppressNotices: ['yahooSurvey'] });
 
@@ -43,6 +44,8 @@ export async function getPriceHistory(ticker, range = '6mo') {
     volume: q.volume || 0,
   }));
 
+  const dataQuality = assertPriceDataQuality(prices);
+
   const data = {
     ticker,
     meta: {
@@ -53,6 +56,7 @@ export async function getPriceHistory(ticker, range = '6mo') {
       regularMarketChangePercent: meta.regularMarketChangePercent,
     },
     prices,
+    dataQuality,
   };
 
   setCache(cacheKey, data);
